@@ -6,7 +6,7 @@
     "distDir": "../"
   },
   "package": {
-    "productName": "SecureNet",
+    "productName": "Catlover",
     "version": "0.1.0"
   },
   "tauri": {
@@ -18,12 +18,18 @@
       "shell": {
         "all": false,
         "open": true
+      },
+      "process": {
+        "all": true
+      },
+      "path": {
+        "all": true
       }
     },
     "bundle": {
       "active": true,
-      "category": "DeveloperTool",
-      "copyright": "",
+      "category": "SocialNetworking",
+      "copyright": "© 2026 DemonestoriCat",
       "deb": {
         "depends": []
       },
@@ -35,8 +41,8 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.securenet.desktop",
-      "longDescription": "",
+      "identifier": "com.catlover.messenger",
+      "longDescription": "Private, zero-knowledge messenger for cat lovers.",
       "macOS": {
         "entitlements": null,
         "exceptionDomain": "",
@@ -45,13 +51,21 @@
         "signingIdentity": null
       },
       "resources": [],
-      "shortDescription": "",
+      "shortDescription": "Catlover Messenger",
       "targets": "all",
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
         "timestampServer": ""
       }
+    },
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://raw.githubusercontent.com/DemonestoriCat/Catlover/master/update.json"
+      ],
+      "dialog": true,
+      "pubkey": "dW5kZWZpbmVk"
     },
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https: wss:; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
@@ -66,7 +80,7 @@
         "fullscreen": false,
         "height": 800,
         "resizable": true,
-        "title": "SecureNet Messenger",
+        "title": "Catlover Messenger",
         "width": 1000
       }
     ]

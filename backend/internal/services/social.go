@@ -230,3 +230,60 @@ func (s *SocialService) GetComments(postID uuid.UUID) ([]models.Comment, error) 
 
 	return comments, nil
 }
+
+// SearchUsers ищет пользователей по нику или телефону
+func (s *SocialService) SearchUsers(query string) ([]models.User, error) {
+	rows, err := s.db.Query(`
+		SELECT id, username, phone_number, avatar, public_key, created_at
+		FROM users
+		WHERE (username ILIKE $1 OR phone_number ILIKE $1)
+		LIMIT 20`,
+		"%"+query+"%",
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	users := []models.User{}
+	for rows.Next() {
+		var u models.User
+		var avatar sql.NullString
+		if err := rows.Scan(&u.ID, &u.Username, &u.PhoneNumber, &avatar, &u.PublicKey, &u.CreatedAt); err != nil {
+			continue
+		}
+		if avatar.Valid {
+			u.Avatar = avatar.String
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
+// SyncContacts сопоставляет номера телефонов с пользователями
+func (s *SocialService) SyncContacts(userID uuid.UUID, phones []string) ([]models.User, error) {
+	rows, err := s.db.Query(`
+		SELECT id, username, phone_number, avatar, public_key, created_at
+		FROM users
+		WHERE phone_number = ANY($1) AND id != $2`,
+		pq.Array(phones), userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	users := []models.User{}
+	for rows.Next() {
+		var u models.User
+		var avatar sql.NullString
+		if err := rows.Scan(&u.ID, &u.Username, &u.PhoneNumber, &avatar, &u.PublicKey, &u.CreatedAt); err != nil {
+			continue
+		}
+		if avatar.Valid {
+			u.Avatar = avatar.String
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}

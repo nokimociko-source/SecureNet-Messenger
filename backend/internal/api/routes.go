@@ -177,255 +177,8 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			c.JSON(http.StatusOK, users)
 		})
 
-		// ✅ SOCIAL NETWORK ROUTES (100% completion)
-		social := authorized.Group("/social")
-		{
-			social.GET("/feed", func(c *gin.Context) {
-				userID, _ := uuid.Parse(c.GetString("userId"))
-				posts, _ := socialSvc.GetFeed(userID, 20, 0)
-				c.JSON(http.StatusOK, gin.H{"posts": posts})
-			})
 
-			social.GET("/users/search", func(c *gin.Context) {
-				query := c.Query("q")
-				if len(query) < 3 {
-					c.JSON(http.StatusOK, []interface{}{})
-					return
-				}
 
-				userID, _ := uuid.Parse(c.GetString("userId"))
-
-				// Search by username or phone
-				rows, err := db.Query(`
-					SELECT id, username, phone_number 
-					FROM users 
-					WHERE (username ILIKE $1 OR phone_number ILIKE $1) 
-					AND id != $2 
-					LIMIT 20`,
-					"%"+query+"%", userID)
-
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Search failed"})
-					return
-				}
-				defer rows.Close()
-
-				var users []gin.H
-				for rows.Next() {
-					var id, username, phone string
-					if err := rows.Scan(&id, &username, &phone); err == nil {
-						users = append(users, gin.H{
-							"id":          id,
-							"username":    username,
-							"phoneNumber": phone,
-						})
-					}
-				}
-
-				c.JSON(http.StatusOK, users)
-			})
-
-			social.POST("/posts", func(c *gin.Context) {
-				var req struct {
-					Content   string   `json:"content"`
-					MediaURLs []string `json:"mediaUrls"`
-					Signature string   `json:"signature"`
-				}
-				if err := c.ShouldBindJSON(&req); err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-					return
-				}
-				userID, _ := uuid.Parse(c.GetString("userId"))
-				post, err := socialSvc.CreatePost(userID, req.Content, req.MediaURLs, req.Signature)
-				if err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-					return
-				}
-				c.JSON(http.StatusCreated, post)
-			})
-
-			social.POST("/channels", func(c *gin.Context) {
-				var req struct {
-					Name        string `json:"name" binding:"required"`
-					Description string `json:"description"`
-					IsPrivate   bool   `json:"isPrivate"`
-				}
-				if err := c.ShouldBindJSON(&req); err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-					return
-				}
-				userID, _ := uuid.Parse(c.GetString("userId"))
-				channel, err := socialSvc.CreateChannel(userID, req.Name, req.Description, req.IsPrivate)
-				if err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-					return
-				}
-				c.JSON(http.StatusCreated, channel)
-			})
-
-			social.POST("/subscribe", func(c *gin.Context) {
-				var req struct {
-					TargetID   uuid.UUID `json:"targetId" binding:"required"`
-					TargetType string    `json:"targetType" binding:"required"`
-				}
-				if err := c.ShouldBindJSON(&req); err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-					return
-				}
-				userID, _ := uuid.Parse(c.GetString("userId"))
-				err := socialSvc.Subscribe(userID, req.TargetID, req.TargetType)
-				if err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-					return
-				}
-				c.JSON(http.StatusOK, gin.H{"status": "subscribed"})
-			})
-
-			// Likes
-			social.POST("/posts/:id/like", func(c *gin.Context) {
-				postID, _ := uuid.Parse(c.Param("id"))
-				userID, _ := uuid.Parse(c.GetString("userId"))
-				if err := socialSvc.LikePost(userID, postID); err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to like post"})
-					return
-				}
-				c.JSON(http.StatusOK, gin.H{"status": "liked"})
-			})
-
-			social.DELETE("/posts/:id/like", func(c *gin.Context) {
-				postID, _ := uuid.Parse(c.Param("id"))
-				userID, _ := uuid.Parse(c.GetString("userId"))
-				if err := socialSvc.UnlikePost(userID, postID); err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unlike post"})
-					return
-				}
-				c.JSON(http.StatusOK, gin.H{"status": "unliked"})
-			})
-
-			// Comments
-			social.GET("/posts/:id/comments", func(c *gin.Context) {
-				postID, _ := uuid.Parse(c.Param("id"))
-				comments, err := socialSvc.GetComments(postID)
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch comments"})
-					return
-				}
-				c.JSON(http.StatusOK, comments)
-			})
-
-			social.POST("/posts/:id/comments", func(c *gin.Context) {
-				postID, _ := uuid.Parse(c.Param("id"))
-				userID, _ := uuid.Parse(c.GetString("userId"))
-				var req struct {
-					Content string `json:"content" binding:"required"`
-				}
-				if err := c.ShouldBindJSON(&req); err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-					return
-				}
-				comment, err := socialSvc.AddComment(userID, postID, req.Content)
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add comment"})
-					return
-				}
-				c.JSON(http.StatusCreated, comment)
-			})
-
-			social.DELETE("/posts/:id", func(c *gin.Context) {
-				postID, _ := uuid.Parse(c.Param("id"))
-				userID, _ := uuid.Parse(c.GetString("userId"))
-
-				var authorID uuid.UUID
-				err := db.QueryRow("SELECT author_id FROM posts WHERE id = $1", postID).Scan(&authorID)
-				if err != nil {
-					c.JSON(http.StatusNotFound, gin.H{"error": "Post not found"})
-					return
-				}
-
-				if authorID != userID {
-					c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-					return
-				}
-
-				if _, err := db.Exec("DELETE FROM posts WHERE id = $1", postID); err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete"})
-					return
-				}
-				c.JSON(http.StatusOK, gin.H{"status": "deleted"})
-			})
-
-			social.DELETE("/posts/:id/comments/:commentId", func(c *gin.Context) {
-				postID, _ := uuid.Parse(c.Param("id"))
-				commentID, _ := uuid.Parse(c.Param("commentId"))
-				userID, _ := uuid.Parse(c.GetString("userId"))
-
-				var postAuthorID, commentAuthorID uuid.UUID
-				err := db.QueryRow(`
-					SELECT p.author_id, c.author_id 
-					FROM post_comments c
-					JOIN posts p ON c.post_id = p.id
-					WHERE c.id = $1 AND p.id = $2
-				`, commentID, postID).Scan(&postAuthorID, &commentAuthorID)
-
-				if err != nil {
-					c.JSON(http.StatusNotFound, gin.H{"error": "Comment not found"})
-					return
-				}
-
-				if userID != postAuthorID && userID != commentAuthorID {
-					c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-					return
-				}
-
-				if _, err := db.Exec("DELETE FROM post_comments WHERE id = $1", commentID); err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete comment"})
-					return
-				}
-				c.JSON(http.StatusOK, gin.H{"status": "deleted"})
-			})
-
-			social.POST("/contacts/sync", func(c *gin.Context) {
-				var req struct {
-					PhoneNumbers []string `json:"phoneNumbers" binding:"required"`
-				}
-				if err := c.ShouldBindJSON(&req); err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-					return
-				}
-
-				userID, _ := uuid.Parse(c.GetString("userId"))
-
-				rows, err := db.Query(`
-					SELECT id, username, phone_number 
-					FROM users 
-					WHERE phone_number = ANY($1) AND id != $2`,
-					pq.Array(req.PhoneNumbers), userID)
-
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Sync failed"})
-					return
-				}
-				defer rows.Close()
-
-				var matchedUsers []gin.H
-				for rows.Next() {
-					var id, username, phone string
-					if err := rows.Scan(&id, &username, &phone); err == nil {
-						matchedUsers = append(matchedUsers, gin.H{
-							"id":          id,
-							"username":    username,
-							"phoneNumber": phone,
-						})
-
-						// Mutually add to contacts
-						db.Exec("INSERT INTO contacts (user_id, contact_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", userID, id)
-						db.Exec("INSERT INTO contacts (user_id, contact_id) VALUES ($2, $1) ON CONFLICT DO NOTHING", userID, id)
-					}
-				}
-
-				c.JSON(http.StatusOK, matchedUsers)
-			})
-		}
 
 		// Contacts (original code continues...)
 		authorized.GET("/contacts", func(c *gin.Context) {
@@ -1384,6 +1137,58 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 					return
 				}
 				c.JSON(http.StatusOK, posts)
+			})
+
+			socialRoute.GET("/users/search", func(c *gin.Context) {
+				query := c.Query("q")
+				if query == "" {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Empty query"})
+					return
+				}
+				users, err := socialSvc.SearchUsers(query)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+				c.JSON(http.StatusOK, users)
+			})
+
+			socialRoute.POST("/channels", func(c *gin.Context) {
+				userID, _ := uuid.Parse(c.GetString("userId"))
+				var req struct {
+					Name        string `json:"name" binding:"required"`
+					Description string `json:"description"`
+					IsPrivate   bool   `json:"isPrivate"`
+				}
+				if err := c.ShouldBindJSON(&req); err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+					return
+				}
+				channel, err := socialSvc.CreateChannel(userID, req.Name, req.Description, req.IsPrivate)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+				c.JSON(http.StatusCreated, channel)
+			})
+
+			socialRoute.POST("/contacts/sync", func(c *gin.Context) {
+				userID, _ := uuid.Parse(c.GetString("userId"))
+				var req struct {
+					Phones []string `json:"phones" binding:"required"`
+				}
+				if err := c.ShouldBindJSON(&req); err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+					return
+				}
+
+				matchedUsers, err := socialSvc.SyncContacts(userID, req.Phones)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+
+				c.JSON(http.StatusOK, matchedUsers)
 			})
 
 			socialRoute.POST("/posts", func(c *gin.Context) {

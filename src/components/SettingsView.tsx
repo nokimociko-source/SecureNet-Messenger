@@ -60,6 +60,9 @@ export default function SettingsView({
 
   const [syncResults, setSyncResults] = useState<SyncedContact[]>([]);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushSupported, setPushSupported] = useState(true);
   const syncService = new ContactSyncService(apiRequest);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -262,9 +265,6 @@ export default function SettingsView({
       return response.ok;
     } catch { return false; }
   };
-
-  const [pushEnabled, setPushEnabled] = useState(false);
-  const [pushSupported, setPushSupported] = useState(true);
 
   useEffect(() => {
     const checkPush = async () => {
@@ -888,7 +888,6 @@ export default function SettingsView({
   }
 
   if (activeTab === 'sync_contacts') {
-    const [isSyncing, setIsSyncing] = useState(false);
     const syncEnabled = localStorage.getItem('contacts_sync_enabled') === 'true';
 
     const handleSync = async () => {

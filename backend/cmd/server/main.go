@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -28,16 +29,20 @@ func main() {
 	cfg := config.Load()
 
 	// Initialize database
+	log.Printf("🔌 Connecting to database at %s...", cfg.DatabaseURL)
 	database, err := db.Init(cfg.DatabaseURL)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("❌ Failed to connect to database:", err)
 	}
 	defer database.Close()
+	log.Println("✅ Database connected")
 
 	// Run migrations
+	log.Println("🔄 Running migrations...")
 	if err := db.Migrate(database); err != nil {
 		log.Printf("⚠️ Migration warning: %v", err)
 	}
+	log.Println("✅ Migrations finished")
 
 	// Initialize Notification Service
 	notifSvc := services.NewNotificationService(database)
@@ -46,6 +51,7 @@ func main() {
 	chatRepo := postgres.NewChatRepo(database)
 
 	// Setup WebSocket hub
+	log.Println("⚙️ Starting WebSocket hub...")
 	hub := websocket.NewHub(chatRepo, notifSvc)
 	go hub.Run()
 
@@ -58,6 +64,7 @@ func main() {
 
 	allowedOrigins := map[string]bool{
 		"http://localhost:5173": true,
+		"http://127.0.0.1:5173": true,
 	}
 	if raw := os.Getenv("CORS_ALLOWED_ORIGINS"); raw != "" {
 		for _, origin := range strings.Split(raw, ",") {
@@ -73,6 +80,8 @@ func main() {
 		origin := c.Request.Header.Get("Origin")
 		if allowedOrigins[origin] {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		} else if origin != "" {
+			log.Printf("⚠️ CORS: Rejected origin %s", origin)
 		}
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, X-Auth-Token")
@@ -88,7 +97,7 @@ func main() {
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+		c.JSON(200, gin.H{"status": "ok", "time": time.Now()})
 	})
 
 	// ✅ WebSocket Ticket (Protected by CORS middleware)
@@ -122,8 +131,8 @@ func main() {
 		port = "8080"
 	}
 
-	log.Printf("🚀 Server starting on http://127.0.0.1:%s", port)
-	if err := router.Run("127.0.0.1:" + port); err != nil {
-		log.Fatal("Failed to start server:", err)
+	log.Printf("🚀 Server starting on port %s", port)
+	if err := router.Run(":" + port); err != nil {
+		log.Fatal("❌ Failed to start server:", err)
 	}
 }
