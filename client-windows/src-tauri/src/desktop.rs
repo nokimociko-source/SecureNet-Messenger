@@ -2,6 +2,7 @@ use tauri::{
     CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayMenuItem, SystemTrayEvent
 };
 use tauri_plugin_notification::NotificationExt;
+use keyring::Entry;
 
 // ✅ Fix #5.2: Enhanced Windows Security & UX
 pub fn setup_tray() -> SystemTray {
@@ -31,15 +32,19 @@ pub fn send_notification(app: tauri::AppHandle, title: &str, body: &str) {
 // ✅ Windows-specific secure key storage (POC implementation)
 #[tauri::command]
 pub fn secure_save_key(key_name: String, key_value: String) -> Result<(), String> {
-    println!("🔐 SecureNet Desktop: Saving key '{}'", key_name);
-    // In a real app, use keyring-rs or DPAPI via a crate
-    // For now, we just acknowledge the command to prevent JS errors
-    Ok(())
+    let entry = Entry::new("SecureNet", &key_name).map_err(|e| e.to_string())?;
+    entry.set_password(&key_value).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn secure_get_key(key_name: String) -> Result<String, String> {
+    let entry = Entry::new("SecureNet", &key_name).map_err(|e| e.to_string())?;
+    entry.get_password().map_err(|e| e.to_string())
 }
 
 // ✅ Windows-specific secure key decryption (Placeholder for DPAPI)
 #[tauri::command]
 pub fn decrypt_local_store(encrypted_blob: Vec<u8>) -> Result<String, String> {
-    // In a real app, this calls Windows CryptUnprotectData
-    Ok("decrypted_master_key".to_string())
+    let _ = encrypted_blob;
+    Err("decrypt_local_store is deprecated; use secure_get_key() backed by OS keychain".to_string())
 }

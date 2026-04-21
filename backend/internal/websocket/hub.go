@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,7 +27,24 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // In production, check origin properly
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			// Allow non-browser/native clients that do not send Origin.
+			return true
+		}
+
+		allowed := map[string]bool{
+			"http://localhost:5173": true,
+		}
+		if raw := os.Getenv("WS_ALLOWED_ORIGINS"); raw != "" {
+			for _, v := range strings.Split(raw, ",") {
+				o := strings.TrimSpace(v)
+				if o != "" {
+					allowed[o] = true
+				}
+			}
+		}
+		return allowed[origin]
 	},
 }
 

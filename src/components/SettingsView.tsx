@@ -60,6 +60,7 @@ export default function SettingsView({
 
   const [syncResults, setSyncResults] = useState<SyncedContact[]>([]);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const syncService = new ContactSyncService(apiRequest);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,6 +127,36 @@ export default function SettingsView({
         loadDevices();
       }
     } catch (error) { toast.error('Ошибка'); }
+  };
+
+  const handleUnblockUser = async (userId: string) => {
+    try {
+      const response = await apiRequest(`/contacts/${userId}/block`, { method: 'DELETE' });
+      if (response.ok) {
+        toast.success('Пользователь разблокирован');
+        loadBlockedUsers();
+      } else {
+        toast.error('Не удалось разблокировать');
+      }
+    } catch (error) {
+      toast.error('Ошибка при разблокировке');
+    }
+  };
+
+  const handleSyncContacts = async () => {
+    setIsSyncing(true);
+    try {
+      const matched = await syncService.sync();
+      setSyncResults(matched);
+      setShowSyncModal(true);
+      if (matched.length > 0) {
+        ContactSyncService.setAutoSync(true);
+      }
+    } catch (e) {
+      toast.error('Синхронизация не удалась');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleChangePassword = async (current: string, next: string) => {
@@ -648,7 +679,12 @@ export default function SettingsView({
                       <p className="text-xs text-white/30 font-mono">{user.phoneNumber}</p>
                     </div>
                   </div>
-                  <button className="px-5 py-2 text-[10px] font-black text-purple-400 hover:bg-purple-500/10 rounded-full border border-purple-500/20 transition-all uppercase tracking-widest">Разблокировать</button>
+                  <button
+                    onClick={() => handleUnblockUser(user.id)}
+                    className="px-5 py-2 text-[10px] font-black text-purple-400 hover:bg-purple-500/10 rounded-full border border-purple-500/20 transition-all uppercase tracking-widest"
+                  >
+                    Разблокировать
+                  </button>
                 </div>
               ))}
             </div>
@@ -869,24 +905,7 @@ export default function SettingsView({
   }
 
   if (activeTab === 'sync_contacts') {
-    const [isSyncing, setIsSyncing] = useState(false);
     const syncEnabled = localStorage.getItem('contacts_sync_enabled') === 'true';
-
-    const handleSync = async () => {
-      setIsSyncing(true);
-      try {
-        const matched = await syncService.sync();
-        setSyncResults(matched);
-        setShowSyncModal(true);
-        if (matched.length > 0) {
-          ContactSyncService.setAutoSync(true);
-        }
-      } catch (e) {
-        toast.error('Синхронизация не удалась');
-      } finally {
-        setIsSyncing(false);
-      }
-    };
 
     return (
       <div className="flex-1 bg-[#0a0a0a] flex flex-col h-full animate-in slide-in-from-right duration-300">
@@ -925,7 +944,7 @@ export default function SettingsView({
               </div>
               
               <button
-                onClick={handleSync}
+                onClick={handleSyncContacts}
                 disabled={isSyncing}
                 className="w-full py-5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black rounded-[24px] transition-all shadow-xl shadow-green-900/20 active:scale-95 flex items-center justify-center gap-3"
               >

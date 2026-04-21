@@ -130,9 +130,8 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			}
 			c.JSON(http.StatusOK, gin.H{"token": token, "user": gin.H{"id": claims.UserID.String(), "username": claims.Username, "role": claims.Role}})
 		})
-		
-	}
 
+	}
 
 	// Protected routes
 	authorized := r.Group("/api")
@@ -193,36 +192,36 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 					c.JSON(http.StatusOK, []interface{}{})
 					return
 				}
-				
+
 				userID, _ := uuid.Parse(c.GetString("userId"))
-				
+
 				// Search by username or phone
 				rows, err := db.Query(`
 					SELECT id, username, phone_number 
 					FROM users 
 					WHERE (username ILIKE $1 OR phone_number ILIKE $1) 
 					AND id != $2 
-					LIMIT 20`, 
+					LIMIT 20`,
 					"%"+query+"%", userID)
-				
+
 				if err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "Search failed"})
 					return
 				}
 				defer rows.Close()
-				
+
 				var users []gin.H
 				for rows.Next() {
 					var id, username, phone string
 					if err := rows.Scan(&id, &username, &phone); err == nil {
 						users = append(users, gin.H{
-							"id": id,
-							"username": username,
+							"id":          id,
+							"username":    username,
 							"phoneNumber": phone,
 						})
 					}
 				}
-				
+
 				c.JSON(http.StatusOK, users)
 			})
 
@@ -335,14 +334,14 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			social.DELETE("/posts/:id", func(c *gin.Context) {
 				postID, _ := uuid.Parse(c.Param("id"))
 				userID, _ := uuid.Parse(c.GetString("userId"))
-				
+
 				var authorID uuid.UUID
 				err := db.QueryRow("SELECT author_id FROM posts WHERE id = $1", postID).Scan(&authorID)
 				if err != nil {
 					c.JSON(http.StatusNotFound, gin.H{"error": "Post not found"})
 					return
 				}
-				
+
 				if authorID != userID {
 					c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 					return
@@ -359,7 +358,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 				postID, _ := uuid.Parse(c.Param("id"))
 				commentID, _ := uuid.Parse(c.Param("commentId"))
 				userID, _ := uuid.Parse(c.GetString("userId"))
-				
+
 				var postAuthorID, commentAuthorID uuid.UUID
 				err := db.QueryRow(`
 					SELECT p.author_id, c.author_id 
@@ -367,12 +366,12 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 					JOIN posts p ON c.post_id = p.id
 					WHERE c.id = $1 AND p.id = $2
 				`, commentID, postID).Scan(&postAuthorID, &commentAuthorID)
-				
+
 				if err != nil {
 					c.JSON(http.StatusNotFound, gin.H{"error": "Comment not found"})
 					return
 				}
-				
+
 				if userID != postAuthorID && userID != commentAuthorID {
 					c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 					return
@@ -393,37 +392,37 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 					return
 				}
-				
+
 				userID, _ := uuid.Parse(c.GetString("userId"))
-				
+
 				rows, err := db.Query(`
 					SELECT id, username, phone_number 
 					FROM users 
-					WHERE phone_number = ANY($1) AND id != $2`, 
+					WHERE phone_number = ANY($1) AND id != $2`,
 					pq.Array(req.PhoneNumbers), userID)
-				
+
 				if err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "Sync failed"})
 					return
 				}
 				defer rows.Close()
-				
+
 				var matchedUsers []gin.H
 				for rows.Next() {
 					var id, username, phone string
 					if err := rows.Scan(&id, &username, &phone); err == nil {
 						matchedUsers = append(matchedUsers, gin.H{
-							"id": id,
-							"username": username,
+							"id":          id,
+							"username":    username,
 							"phoneNumber": phone,
 						})
-						
+
 						// Mutually add to contacts
 						db.Exec("INSERT INTO contacts (user_id, contact_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", userID, id)
 						db.Exec("INSERT INTO contacts (user_id, contact_id) VALUES ($2, $1) ON CONFLICT DO NOTHING", userID, id)
 					}
 				}
-				
+
 				c.JSON(http.StatusOK, matchedUsers)
 			})
 		}
@@ -501,7 +500,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 		authorized.POST("/contacts/:id/block", func(c *gin.Context) {
 			userID := c.GetString("userId")
 			contactID := c.Param("id")
-			
+
 			tx, err := db.Begin()
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction failed"})
@@ -685,7 +684,9 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			if rows != nil {
 				for rows.Next() {
 					var mid string
-					if err := rows.Scan(&mid); err == nil { mediaIDs = append(mediaIDs, mid) }
+					if err := rows.Scan(&mid); err == nil {
+						mediaIDs = append(mediaIDs, mid)
+					}
 				}
 				rows.Close()
 			}
@@ -699,7 +700,9 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 
 			// 3. Clean up storage in background
 			go func() {
-				for _, mid := range mediaIDs { mediaSvc.DeleteMedia(c.Request.Context(), mid) }
+				for _, mid := range mediaIDs {
+					mediaSvc.DeleteMedia(c.Request.Context(), mid)
+				}
 			}()
 
 			c.JSON(http.StatusOK, gin.H{"message": "History cleared"})
@@ -724,7 +727,9 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			if rows != nil {
 				for rows.Next() {
 					var mid string
-					if err := rows.Scan(&mid); err == nil { mediaIDs = append(mediaIDs, mid) }
+					if err := rows.Scan(&mid); err == nil {
+						mediaIDs = append(mediaIDs, mid)
+					}
 				}
 				rows.Close()
 			}
@@ -740,7 +745,9 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 
 			// 3. Clean up storage
 			go func() {
-				for _, mid := range mediaIDs { mediaSvc.DeleteMedia(c.Request.Context(), mid) }
+				for _, mid := range mediaIDs {
+					mediaSvc.DeleteMedia(c.Request.Context(), mid)
+				}
 			}()
 
 			c.JSON(http.StatusOK, gin.H{"message": "Chat deleted"})
@@ -758,7 +765,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 				c.JSON(http.StatusForbidden, gin.H{"error": "You can only delete your own messages"})
 				return
 			}
-			
+
 			// 1. Get media_id
 			var mediaID sql.NullString
 			db.QueryRow("SELECT media_id FROM messages WHERE id = $1", messageId).Scan(&mediaID)
@@ -777,7 +784,6 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 
 			c.JSON(http.StatusOK, gin.H{"message": "Message deleted"})
 		})
-
 
 		// Block user
 		authorized.POST("/users/:id/block", func(c *gin.Context) {
@@ -996,9 +1002,9 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 		authorized.POST("/auth/privacy", func(c *gin.Context) {
 			userId := c.GetString("userId")
 			var req struct {
-				PhoneVisibility     *string `json:"phoneVisibility"`
+				PhoneVisibility    *string `json:"phoneVisibility"`
 				LastSeenVisibility *string `json:"lastSeenVisibility"`
-				AvatarVisibility    *string `json:"avatarVisibility"`
+				AvatarVisibility   *string `json:"avatarVisibility"`
 			}
 			if err := c.ShouldBindJSON(&req); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -1147,7 +1153,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			// Log profile update
 			ipAddress, userAgent := services.GetClientInfo(c)
 			auditService.LogAction(uuid.MustParse(userId), "profile_update", "auth", nil, map[string]interface{}{
-				"username": req.Username,
+				"username":   req.Username,
 				"has_avatar": req.Avatar != "",
 			}, ipAddress, userAgent)
 
@@ -1350,6 +1356,15 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 				return
 			}
 			userID, _ := uuid.Parse(c.GetString("userId"))
+			req.Reason = strings.TrimSpace(req.Reason)
+			if req.TargetID == userID {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot report yourself"})
+				return
+			}
+			if len(req.Reason) < 5 || len(req.Reason) > 500 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Reason must be 5-500 characters"})
+				return
+			}
 			_, err := db.Exec("INSERT INTO reports (reporter_id, target_id, reason) VALUES ($1, $2, $3)", userID, req.TargetID, req.Reason)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create report"})
@@ -1380,6 +1395,19 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 				}
 				if err := c.ShouldBindJSON(&req); err != nil {
 					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+					return
+				}
+				req.Content = strings.TrimSpace(req.Content)
+				if req.Content == "" && len(req.MediaURLs) == 0 {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Post cannot be empty"})
+					return
+				}
+				if len(req.Content) > 4000 {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Post content too long"})
+					return
+				}
+				if len(req.MediaURLs) > 10 {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Too many media items"})
 					return
 				}
 				post, err := socialSvc.CreatePost(userID, req.Content, req.MediaURLs, req.Signature)
@@ -1420,7 +1448,11 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 					return
 				}
-				targetID, _ := uuid.Parse(req.TargetID)
+				targetID, err := uuid.Parse(req.TargetID)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid targetId"})
+					return
+				}
 				if err := socialSvc.Subscribe(userID, targetID, req.TargetType); err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
@@ -1437,7 +1469,11 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 					return
 				}
-				targetID, _ := uuid.Parse(req.TargetID)
+				targetID, err := uuid.Parse(req.TargetID)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid targetId"})
+					return
+				}
 				if err := socialSvc.Unsubscribe(userID, targetID); err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
@@ -1465,6 +1501,11 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 					return
 				}
+				req.Content = strings.TrimSpace(req.Content)
+				if len(req.Content) == 0 || len(req.Content) > 2000 {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Comment must be 1-2000 characters"})
+					return
+				}
 				comment, err := socialSvc.AddComment(userID, postID, req.Content)
 				if err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -1474,8 +1515,18 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			})
 
 			socialRoute.DELETE("/posts/:id/comments/:commentId", func(c *gin.Context) {
-				// Simple delete for now
+				userID, _ := uuid.Parse(c.GetString("userId"))
+				role := c.GetString("role")
 				commentID := c.Param("commentId")
+				var authorID uuid.UUID
+				if err := db.QueryRow("SELECT user_id FROM post_comments WHERE id = $1", commentID).Scan(&authorID); err != nil {
+					c.JSON(http.StatusNotFound, gin.H{"error": "Comment not found"})
+					return
+				}
+				if role != "admin" && authorID != userID {
+					c.JSON(http.StatusForbidden, gin.H{"error": "Not allowed to delete this comment"})
+					return
+				}
 				_, err := db.Exec("DELETE FROM post_comments WHERE id = $1", commentID)
 				if err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -1514,14 +1565,14 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 				var createdAt time.Time
 				rows.Scan(&id, &reporterID, &reporterName, &targetID, &targetName, &reason, &status, &createdAt)
 				results = append(results, gin.H{
-					"id": id,
-					"reporterId": reporterID,
+					"id":           id,
+					"reporterId":   reporterID,
 					"reporterName": reporterName,
-					"targetId": targetID,
-					"targetName": targetName,
-					"reason": reason,
-					"status": status,
-					"createdAt": createdAt,
+					"targetId":     targetID,
+					"targetName":   targetName,
+					"reason":       reason,
+					"status":       status,
+					"createdAt":    createdAt,
 				})
 			}
 			c.JSON(http.StatusOK, results)
@@ -1538,8 +1589,15 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
+			req.Status = strings.TrimSpace(strings.ToLower(req.Status))
+			switch req.Status {
+			case "pending", "reviewed", "resolved", "dismissed":
+			default:
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid status"})
+				return
+			}
 			adminID, _ := uuid.Parse(c.GetString("userId"))
-			_, err := db.Exec("UPDATE reports SET status = $1, resolution = $2, moderator_id = $3, resolved_at = NOW() WHERE id = $4", 
+			_, err := db.Exec("UPDATE reports SET status = $1, resolution = $2, moderator_id = $3, resolved_at = NOW() WHERE id = $4",
 				req.Status, req.Resolution, adminID, id)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update report"})
@@ -1559,7 +1617,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			ipAddress, userAgent := services.GetClientInfo(c)
 			adminID, _ := uuid.Parse(c.GetString("userId"))
 			auditService.LogAction(adminID, "audit_cleanup", "admin", nil, nil, ipAddress, userAgent)
-			
+
 			c.JSON(http.StatusOK, gin.H{"message": "Audit logs cleared"})
 		})
 
@@ -1573,7 +1631,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			}
 			// Recreate the directory
 			os.MkdirAll("./uploads", 0755)
-			
+
 			c.JSON(http.StatusOK, gin.H{"message": "Media cache cleared"})
 		})
 
@@ -1600,10 +1658,10 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 					continue
 				}
 				results = append(results, gin.H{
-					"id": id,
-					"authorId": authorID,
-					"username": username,
-					"content": content,
+					"id":        id,
+					"authorId":  authorID,
+					"username":  username,
+					"content":   content,
 					"mediaUrls": mediaUrls,
 					"createdAt": createdAt,
 				})
@@ -1654,16 +1712,16 @@ func authMiddleware(secret string, db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		tokenString := ""
-		
+
 		if authHeader != "" {
 			parts := strings.Split(authHeader, " ")
 			if len(parts) == 2 && parts[0] == "Bearer" {
 				tokenString = parts[1]
 			}
 		}
-		
-		// Fallback to query parameter for media/file requests
-		if tokenString == "" {
+
+		// Fallback to query parameter for legacy media GET links only.
+		if tokenString == "" && c.Request.Method == http.MethodGet && strings.HasPrefix(c.Request.URL.Path, "/api/media/") {
 			tokenString = c.Query("token")
 		}
 
