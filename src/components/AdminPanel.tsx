@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { 
-  Users, ShieldAlert, BarChart3, Trash2, ShieldCheck, 
-  UserMinus, MessageSquare, ArrowLeft, Search, 
+import {
+  Users, ShieldAlert, BarChart3, Trash2, ShieldCheck,
+  UserMinus, MessageSquare, ArrowLeft, Search,
   AlertTriangle, CheckCircle2, LayoutDashboard,
   History
 } from 'lucide-react';
@@ -124,13 +124,12 @@ export default function AdminPanel({ onBack }: { onBack: () => void }) {
   };
 
   const NavItem = ({ tab, icon: Icon, label }: { tab: TabType, icon: any, label: string }) => (
-    <button 
+    <button
       onClick={() => setCurrentTab(tab)}
-      className={`flex items-center gap-3 px-6 py-4 border-b-2 transition-all duration-300 ${
-        currentTab === tab 
-        ? 'border-purple-500 text-purple-400 bg-purple-500/5' 
-        : 'border-transparent text-white/40 hover:text-white hover:bg-white/5'
-      }`}
+      className={`flex items-center gap-3 px-6 py-4 border-b-2 transition-all duration-300 ${currentTab === tab
+          ? 'border-purple-500 text-purple-400 bg-purple-500/5'
+          : 'border-transparent text-white/40 hover:text-white hover:bg-white/5'
+        }`}
     >
       <Icon size={18} />
       <span className="font-bold text-sm uppercase tracking-widest">{label}</span>
@@ -163,7 +162,7 @@ export default function AdminPanel({ onBack }: { onBack: () => void }) {
           </div>
         </div>
         <div className="flex items-center gap-4">
-           <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-full">
+          <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-full">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <span className="text-xs font-bold text-green-400">Online</span>
           </div>
@@ -193,7 +192,7 @@ export default function AdminPanel({ onBack }: { onBack: () => void }) {
               <StatCard icon={BarChart3} title="Активные сессии" value={stats.activeConnections} color="bg-purple-500/10 text-purple-400" />
               <StatCard icon={MessageSquare} title="Сообщений сегодня" value={stats.messagesToday} color="bg-orange-500/10 text-orange-400" />
             </div>
-            
+
             {/* Visual Chart Placeholder */}
             <div className="bg-white/2 border border-white/5 p-8 rounded-[32px]">
               <div className="flex items-center justify-between mb-8">
@@ -206,7 +205,7 @@ export default function AdminPanel({ onBack }: { onBack: () => void }) {
               <div className="h-48 flex items-end gap-3 px-4">
                 {[45, 67, 42, 89, 56, 92, 78].map((val, i) => (
                   <div key={i} className="flex-1 group relative">
-                    <div 
+                    <div
                       className="w-full bg-gradient-to-t from-purple-600 to-indigo-400 rounded-t-xl transition-all duration-500 group-hover:from-purple-500 group-hover:to-pink-400"
                       style={{ height: `${val}%` }}
                     >
@@ -226,15 +225,15 @@ export default function AdminPanel({ onBack }: { onBack: () => void }) {
 
         {!loading && currentTab === 'users' && (
           <div className="bg-white/2 border border-white/5 rounded-[32px] overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
-             <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/1">
+            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/1">
               <h3 className="font-bold text-white flex items-center gap-2 uppercase text-xs tracking-widest">
                 База пользователей
               </h3>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={16} />
-                <input 
-                  type="text" 
-                  placeholder="Поиск по нику..." 
+                <input
+                  type="text"
+                  placeholder="Поиск по нику..."
                   className="bg-black/40 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm text-white focus:ring-2 focus:ring-purple-500 outline-none w-64"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -268,7 +267,7 @@ export default function AdminPanel({ onBack }: { onBack: () => void }) {
                       </span>
                     </td>
                     <td className="p-6">
-                       <button onClick={() => toast.error('Нет прав')} className="p-2 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-all">
+                      <button onClick={() => toast.error('Нет прав')} className="p-2 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-all">
                         <UserMinus size={18} />
                       </button>
                     </td>
@@ -352,11 +351,11 @@ export default function AdminPanel({ onBack }: { onBack: () => void }) {
                   </p>
                   {post.mediaUrls && post.mediaUrls.length > 0 && (
                     <div className="flex gap-2">
-                       {post.mediaUrls.slice(0, 3).map((url: string, i: number) => (
-                         <div key={i} className="flex-1 aspect-square rounded-xl overflow-hidden bg-black/40">
-                            <img src={url} alt="" className="w-full h-full object-cover" />
-                         </div>
-                       ))}
+                      {post.mediaUrls.slice(0, 3).map((url: string, i: number) => (
+                        <div key={i} className="flex-1 aspect-square rounded-xl overflow-hidden bg-black/40">
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -367,7 +366,7 @@ export default function AdminPanel({ onBack }: { onBack: () => void }) {
 
         {!loading && currentTab === 'audit' && (
           <div className="bg-white/2 border border-white/5 rounded-[32px] overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
-             <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/1">
+            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/1">
               <h3 className="font-bold text-white flex items-center gap-2 uppercase text-xs tracking-widest">
                 Логи безопасности и действий
               </h3>
@@ -389,11 +388,10 @@ export default function AdminPanel({ onBack }: { onBack: () => void }) {
                         {format(new Date(log.timestamp), 'dd.MM HH:mm:ss')}
                       </td>
                       <td className="p-6">
-                        <span className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase ${
-                          log.severity === 'high' ? 'bg-rose-500/20 text-rose-500' :
-                          log.severity === 'medium' ? 'bg-amber-500/20 text-amber-500' :
-                          'bg-blue-500/20 text-blue-500'
-                        }`}>
+                        <span className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase ${log.severity === 'high' ? 'bg-rose-500/20 text-rose-500' :
+                            log.severity === 'medium' ? 'bg-amber-500/20 text-amber-500' :
+                              'bg-blue-500/20 text-blue-500'
+                          }`}>
                           {log.action}
                         </span>
                       </td>

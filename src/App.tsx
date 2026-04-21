@@ -42,10 +42,10 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const [contacts, setContacts] = useState<User[]>([]);
-  
+
   const [auditLog, setAuditLog] = useState<storage.AuditLogEntry[]>([]);
   const [masterKey, setMasterKey] = useState<CryptoKey | null>(null);
-  
+
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showDeviceManager, setShowDeviceManager] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{
@@ -58,7 +58,7 @@ export default function App() {
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {},
+    onConfirm: () => { },
   });
 
   const [callData, setCallData] = useState<{
@@ -92,7 +92,7 @@ export default function App() {
       return;
     }
 
-    
+
     // Sync token with Service Worker for media auth
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({
@@ -106,7 +106,7 @@ export default function App() {
       wsRef.current.close();
       wsRef.current = null;
     }
-    
+
     // ✅ SECURITY UPGRADE: Request a One-Time Ticket first
     try {
       const res = await fetch('/ws-ticket', {
@@ -119,88 +119,88 @@ export default function App() {
       const isNative = !!(window as any).__TAURI__ || !!(window as any).Capacitor;
       const host = isNative ? 'yhiscizk-securenet-messenger.hf.space' : window.location.host;
       const protocol = isNative ? 'wss:' : (window.location.protocol === 'https:' ? 'wss:' : 'ws:');
-      
+
       const socket = new WebSocket(`${protocol}//${host}/ws?ticket=${ticket}`);
       wsRef.current = socket;
-    
-    socket.onopen = () => { 
-      console.log('⚡️ Catlover Connected'); 
-    };
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'presence') {
-          setOnlineUsers(data.content?.onlineUsers || []);
-          return;
-        }
-        if (data.type === 'message') {
-          const msg = data.content;
-          setMessages(prev => {
-            if (prev.some(p => p.id === msg.id)) return prev;
-            const filtered = prev.filter(p => 
-              !(p.status === 'sending' && p.content === msg.content && p.senderId === msg.senderId)
-            );
-            return [...filtered, {
-              id: msg.id,
-              sessionId: msg.chatId,
-              senderId: msg.senderId,
-              senderName: msg.username || 'User',
-              content: msg.content,
-              timestamp: msg.timestamp * 1000,
-              type: (msg.type || 'text').trim() as any,
-              status: msg.status || 'sent',
-              mediaId: msg.mediaId || msg.media_id,
-              fileUrl: (msg.mediaId || msg.media_id) 
-                ? `/api/media/${msg.mediaId || msg.media_id}` 
-                : undefined,
-              encrypted: true
-            }];
-          });
-        }
+      socket.onopen = () => {
+        console.log('⚡️ Catlover Connected');
+      };
 
-        if (data.type === 'call') {
-          const { subType, callType } = data.content;
-          if (subType === 'invite') {
-            // Find sender name from contacts or sessions
-            const senderName = sessions.find(s => s.contactId === data.senderId)?.contactName || 
-                              contacts.find(c => c.id === data.senderId)?.username || 
-                              'Неизвестный';
-            
-            setCallData({
-              isOpen: true,
-              isIncoming: true,
-              callType: callType || 'audio',
-              targetUser: { id: data.senderId, username: senderName }
-            });
-          } else {
-            // Relay signal to CallView component
-            window.dispatchEvent(new CustomEvent('securenet-call-signal', { 
-              detail: { ...data.content, senderId: data.senderId } 
-            }));
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'presence') {
+            setOnlineUsers(data.content?.onlineUsers || []);
+            return;
           }
-        }
-      } catch (e) { console.error('Parse error', e); }
-    };
-    
-    socket.onclose = (event) => {
-      // Only retry if it wasn't a clean close from our side
-      if (event.code !== 1000 && event.code !== 1001) {
-        console.log('🔌 Connection lost, retrying...');
-        setTimeout(() => {
-          const t = localStorage.getItem('token');
-          if (t) initWebSocket(t);
-        }, 3000);
-      }
-    };
+          if (data.type === 'message') {
+            const msg = data.content;
+            setMessages(prev => {
+              if (prev.some(p => p.id === msg.id)) return prev;
+              const filtered = prev.filter(p =>
+                !(p.status === 'sending' && p.content === msg.content && p.senderId === msg.senderId)
+              );
+              return [...filtered, {
+                id: msg.id,
+                sessionId: msg.chatId,
+                senderId: msg.senderId,
+                senderName: msg.username || 'User',
+                content: msg.content,
+                timestamp: msg.timestamp * 1000,
+                type: (msg.type || 'text').trim() as any,
+                status: msg.status || 'sent',
+                mediaId: msg.mediaId || msg.media_id,
+                fileUrl: (msg.mediaId || msg.media_id)
+                  ? `/api/media/${msg.mediaId || msg.media_id}`
+                  : undefined,
+                encrypted: true
+              }];
+            });
+          }
 
-    socket.onerror = (err) => {
-      // Don't log if it's already closing/closed to avoid clutter during React hot reloads
-      if (socket.readyState !== WebSocket.CLOSED && socket.readyState !== WebSocket.CLOSING) {
-        console.error('❌ WebSocket Error:', err);
-      }
-    };
-  } catch (err) {
+          if (data.type === 'call') {
+            const { subType, callType } = data.content;
+            if (subType === 'invite') {
+              // Find sender name from contacts or sessions
+              const senderName = sessions.find(s => s.contactId === data.senderId)?.contactName ||
+                contacts.find(c => c.id === data.senderId)?.username ||
+                'Неизвестный';
+
+              setCallData({
+                isOpen: true,
+                isIncoming: true,
+                callType: callType || 'audio',
+                targetUser: { id: data.senderId, username: senderName }
+              });
+            } else {
+              // Relay signal to CallView component
+              window.dispatchEvent(new CustomEvent('securenet-call-signal', {
+                detail: { ...data.content, senderId: data.senderId }
+              }));
+            }
+          }
+        } catch (e) { console.error('Parse error', e); }
+      };
+
+      socket.onclose = (event) => {
+        // Only retry if it wasn't a clean close from our side
+        if (event.code !== 1000 && event.code !== 1001) {
+          console.log('🔌 Connection lost, retrying...');
+          setTimeout(() => {
+            const t = localStorage.getItem('token');
+            if (t) initWebSocket(t);
+          }, 3000);
+        }
+      };
+
+      socket.onerror = (err) => {
+        // Don't log if it's already closing/closed to avoid clutter during React hot reloads
+        if (socket.readyState !== WebSocket.CLOSED && socket.readyState !== WebSocket.CLOSING) {
+          console.error('❌ WebSocket Error:', err);
+        }
+      };
+    } catch (err) {
       console.error('❌ Failed to establish secure WebSocket connection:', err);
       // Retry in 5 seconds on ticket failure
       setTimeout(() => {
@@ -215,7 +215,7 @@ export default function App() {
 
     try {
       const registration = await navigator.serviceWorker.ready;
-      
+
       // Check if already subscribed
       const existingSub = await registration.pushManager.getSubscription();
       if (existingSub) {
@@ -316,7 +316,7 @@ export default function App() {
           type: (m.msg_type || m.type || 'text').trim() as any,
           status: m.status || 'sent',
           mediaId: m.mediaId || m.media_id,
-          fileUrl: (m.mediaId || m.media_id)                ? `/api/media/${m.mediaId || m.media_id}` 
+          fileUrl: (m.mediaId || m.media_id) ? `/api/media/${m.mediaId || m.media_id}`
             : undefined,
           encrypted: true
         }));
@@ -330,7 +330,7 @@ export default function App() {
       console.log('🔐 Initializing SecureNet...');
       const storedUser = localStorage.getItem('currentUser');
       const storedToken = localStorage.getItem('token');
-      
+
       if (storedUser && storedToken) {
         const user = JSON.parse(storedUser);
         setCurrentUser(user);
@@ -346,7 +346,7 @@ export default function App() {
         ]);
 
         await fetchSessions();
-        
+
         setSessions(prev => {
           const existingIds = new Set(prev.map(s => s.id));
           const hasSavedFromBackend = prev.some(s => s.contactId === user.id);
@@ -422,7 +422,7 @@ export default function App() {
     if (isNaN(date.getTime())) return '';
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
-    
+
     if (isToday) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
@@ -467,7 +467,7 @@ export default function App() {
     if (!masterKey) throw new Error('Security vault locked');
     const identity = await storage.getIdentityKeyPair('primary', masterKey);
     if (!identity?.privateKeys?.signing) throw new Error('Signing key not found');
-    
+
     const encoder = new TextEncoder();
     const encoded = encoder.encode(typeof data === 'string' ? data : JSON.stringify(data));
     const signature = await crypto.signECDSA(encoded, identity.privateKeys.signing);
@@ -479,7 +479,7 @@ export default function App() {
   const handleLogin = async (phone: string, pass: string) => {
     try {
       const result = await contextLogin(phone, pass);
-      
+
       if (result.requires2FA) {
         setTemp2FAToken(result.tempToken || null);
         setCurrentView('2fa');
@@ -532,19 +532,19 @@ export default function App() {
     try {
       const salt = crypto.randomBytes(16);
       const encryptionKey = await crypto.deriveKeyFromPassword(pass, salt);
-      
+
       // 1. Generate long-term Identity Key (IK) - we'll use ECDSA/ECDH P-521
       const idKeyPair = await crypto.generateECDHKeyPair();
       const idPubJwk = await crypto.exportPublicKey(idKeyPair.publicKey);
-      
+
       // 2. Generate a Signed Pre-key (SPK)
       const spkKeyPair = await crypto.generateECDHKeyPair();
       const spkPubJwk = await crypto.exportPublicKey(spkKeyPair.publicKey);
-      
+
       // 3. Generate a batch of One-Time Pre-keys (OTPK) - let's do 50
       const otpkBatch = [];
       const otpkUploadData = [];
-      
+
       for (let i = 0; i < 50; i++) {
         const keyPair = await crypto.generateECDHKeyPair();
         const pubJwk = await crypto.exportPublicKey(keyPair.publicKey);
@@ -560,7 +560,7 @@ export default function App() {
       await storage.storeIdentityKeyPair({
         id: 'primary',
         publicKey: JSON.stringify(idPubJwk),
-        privateKey: 'ENCRYPTED', 
+        privateKey: 'ENCRYPTED',
         privateKeyIv: 'IV',
         signPublicKey: JSON.stringify(idPubJwk),
         signPrivateKey: 'ENCRYPTED',
@@ -588,7 +588,7 @@ export default function App() {
       if (!response.ok) throw new Error('Registration failed');
       const data = await response.json();
       setMasterKey(encryptionKey);
-      
+
       // 5. Upload Pre-keys
       await apiRequest('/crypto/prekeys', {
         method: 'POST',
@@ -851,61 +851,61 @@ export default function App() {
           <div className="flex items-center gap-2">
             {(currentUser?.role === 'admin') && (
               <button onClick={() => setCurrentView('admin')} className="p-2 hover:bg-purple-500/20 text-purple-400 rounded-full transition-all" title="Админ-панель">
-                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
               </button>
             )}
             <button onClick={() => setCurrentView('settings')} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
             </button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-           {sessions.map(session => (
-             <div
-               key={session.id}
-               onClick={() => { setActiveSession(session); setCurrentView('messenger'); }}
-               className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-all animate-message ${activeSession?.id === session.id ? 'bg-purple-600 shadow-xl' : 'hover:bg-white/5'}`}
-             >
-               <div className="relative flex-shrink-0">
-                  <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold ${activeSession?.id === session.id ? 'bg-white/20' : 'bg-gradient-to-tr from-indigo-500 to-purple-500 shadow-lg'}`}>
-                    {session.contactId === currentUser?.id ? '🔖' : (session.contactName?.[0] || '?')}
-                  </div>
-                  {/* Online Indicator: Only for private chats and if user is in onlineUsers */}
-                  {!session.isGroup && (session.contactId === currentUser?.id || onlineUsers.includes(session.contactId)) && (
-                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-4 border-[#0f0a1e] rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
-                  )}
-               </div>
-               <div className="flex-1 min-w-0">
-                 <div className="flex items-center justify-between mb-1">
-                   <span className="font-bold truncate text-[16px]">{session.contactId === currentUser?.id ? 'Избранное' : session.contactName}</span>
-                   <span className="text-[11px] opacity-40">{formatTimestamp(session.lastMessageAt || session.lastMessage?.timestamp)}</span>
-                 </div>
-                 <p className="text-sm truncate opacity-50">{session.lastMessage?.content || (session.contactId === currentUser?.id ? 'Личные заметки' : 'Начните общение')}</p>
-               </div>
-             </div>
-           ))}
+          {sessions.map(session => (
+            <div
+              key={session.id}
+              onClick={() => { setActiveSession(session); setCurrentView('messenger'); }}
+              className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-all animate-message ${activeSession?.id === session.id ? 'bg-purple-600 shadow-xl' : 'hover:bg-white/5'}`}
+            >
+              <div className="relative flex-shrink-0">
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold ${activeSession?.id === session.id ? 'bg-white/20' : 'bg-gradient-to-tr from-indigo-500 to-purple-500 shadow-lg'}`}>
+                  {session.contactId === currentUser?.id ? '🔖' : (session.contactName?.[0] || '?')}
+                </div>
+                {/* Online Indicator: Only for private chats and if user is in onlineUsers */}
+                {!session.isGroup && (session.contactId === currentUser?.id || onlineUsers.includes(session.contactId)) && (
+                  <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-4 border-[#0f0a1e] rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold truncate text-[16px]">{session.contactId === currentUser?.id ? 'Избранное' : session.contactName}</span>
+                  <span className="text-[11px] opacity-40">{formatTimestamp(session.lastMessageAt || session.lastMessage?.timestamp)}</span>
+                </div>
+                <p className="text-sm truncate opacity-50">{session.lastMessage?.content || (session.contactId === currentUser?.id ? 'Личные заметки' : 'Начните общение')}</p>
+              </div>
+            </div>
+          ))}
         </div>
         <div className="glass p-4 flex justify-around">
-           <button onClick={() => setCurrentView('messenger')} className={`p-2 transition-all ${currentView === 'messenger' ? 'text-purple-400 scale-110' : 'text-white/40 hover:text-white'}`}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-           </button>
-           <button onClick={() => setCurrentView('contacts')} className={`p-2 transition-all ${currentView === 'contacts' ? 'text-purple-400 scale-110' : 'text-white/40 hover:text-white'}`}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
-           </button>
-           <button onClick={() => setCurrentView('feed')} className={`p-2 transition-all ${currentView === 'feed' ? 'text-purple-400 scale-110' : 'text-white/40 hover:text-white'}`}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-           </button>
+          <button onClick={() => setCurrentView('messenger')} className={`p-2 transition-all ${currentView === 'messenger' ? 'text-purple-400 scale-110' : 'text-white/40 hover:text-white'}`}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+          </button>
+          <button onClick={() => setCurrentView('contacts')} className={`p-2 transition-all ${currentView === 'contacts' ? 'text-purple-400 scale-110' : 'text-white/40 hover:text-white'}`}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></svg>
+          </button>
+          <button onClick={() => setCurrentView('feed')} className={`p-2 transition-all ${currentView === 'feed' ? 'text-purple-400 scale-110' : 'text-white/40 hover:text-white'}`}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+          </button>
         </div>
       </div>
       <div className="flex-1 relative flex flex-col bg-[#0f0a1e]">
         {currentView === 'messenger' && activeSession && (
-          <ChatView 
-            session={activeSession} 
-            messages={messages} 
-            currentUser={currentUser!} 
+          <ChatView
+            session={activeSession}
+            messages={messages}
+            currentUser={currentUser!}
             contacts={contacts}
-            onSend={(content) => sendMessage(content, activeSession.id)} 
-            onSendFile={sendFile} 
+            onSend={(content) => sendMessage(content, activeSession.id)}
+            onSendFile={sendFile}
             onClearHistory={() => handleClearHistory(activeSession.id)}
             onDeleteChat={() => handleDeleteChat(activeSession.id)}
             onDeleteMessage={handleDeleteMessage}
@@ -914,14 +914,14 @@ export default function App() {
             onUpdateGroup={handleUpdateGroup}
             onLeaveGroup={handleLeaveGroup}
             onBlockUser={handleBlockUser}
-            onBack={() => setActiveSession(null)} 
+            onBack={() => setActiveSession(null)}
             onCall={handleCall}
             onVideoCall={handleVideoCall}
           />
         )}
 
         {callData.isOpen && callData.targetUser && (
-          <CallView 
+          <CallView
             isOpen={callData.isOpen}
             isIncoming={callData.isIncoming}
             callType={callData.callType}
@@ -932,16 +932,16 @@ export default function App() {
         )}
         {currentView === 'messenger' && !activeSession && (
           <div className="flex-1 flex items-center justify-center flex-col text-white/10 select-none">
-             <div className="w-40 h-40 mb-8 glass rounded-full flex items-center justify-center"><svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-             <p className="text-sm font-bold tracking-[0.3em] uppercase opacity-30">Выберите чат</p>
+            <div className="w-40 h-40 mb-8 glass rounded-full flex items-center justify-center"><svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg></div>
+            <p className="text-sm font-bold tracking-[0.3em] uppercase opacity-30">Выберите чат</p>
           </div>
         )}
         {currentView === 'settings' && (
-          <SettingsView 
-            currentUser={currentUser!} 
-            onUpdateUser={setCurrentUser} 
-            onBack={() => setCurrentView('messenger')} 
-            onLogout={handleLogout} 
+          <SettingsView
+            currentUser={currentUser!}
+            onUpdateUser={setCurrentUser}
+            onBack={() => setCurrentView('messenger')}
+            onLogout={handleLogout}
             onUpdatePrivacy={handleUpdatePrivacy}
             onStartChat={(user) => {
               const existing = sessions.find(s => s.contactId === user.id);
@@ -975,8 +975,8 @@ export default function App() {
         {currentView === 'security' && <SecurityView auditLog={auditLog} onBack={() => setCurrentView('messenger')} />}
         {currentView === 'feed' && <div className="flex-1 overflow-y-auto"><FeedPage currentUser={currentUser!} contacts={contacts} onSign={signData} /></div>}
         {currentView === 'contacts' && (
-          <ContactsView 
-            contacts={contacts} 
+          <ContactsView
+            contacts={contacts}
             onStartChat={(user) => {
               // Find or create session
               const existing = sessions.find(s => s.contactId === user.id);
@@ -992,11 +992,11 @@ export default function App() {
                   muted: false,
                   pinned: false,
                   verified: true,
-                  lastMessage: { 
+                  lastMessage: {
                     id: `msg-temp-${user.id}`,
                     sessionId: `temp-${user.id}`,
                     senderId: user.id,
-                    content: 'Начните общение', 
+                    content: 'Начните общение',
                     timestamp: Date.now() / 1000,
                     type: 'text',
                     status: 'sent',
@@ -1005,16 +1005,16 @@ export default function App() {
                 });
               }
               setCurrentView('messenger');
-            }} 
+            }}
             onCreateGroup={() => setShowCreateGroup(true)}
           />
         )}
       </div>
       {showCreateGroup && <CreateGroupChat apiRequest={apiRequest} contacts={contacts.map(c => ({ id: c.id, name: c.name, phoneNumber: c.phoneNumber }))} onGroupCreated={() => setShowCreateGroup(false)} onClose={() => setShowCreateGroup(false)} />}
       {showDeviceManager && <DeviceManager apiRequest={apiRequest} onClose={() => setShowDeviceManager(false)} />}
-      <ConfirmModal 
-        {...confirmModal} 
-        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))} 
+      <ConfirmModal
+        {...confirmModal}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
       />
     </div>
   );
@@ -1028,7 +1028,7 @@ function AuthView({ onRegister, onLogin }: { onRegister: (name: string, email: s
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  
+
   return (
     <div className="min-h-screen bg-[#0f0a1e] flex items-center justify-center p-4">
       <div className="glass p-10 max-w-md w-full rounded-[40px] shadow-2xl relative overflow-hidden">
@@ -1043,24 +1043,24 @@ function AuthView({ onRegister, onLogin }: { onRegister: (name: string, email: s
           )}
           <input type="tel" autoComplete="username" placeholder={t('auth.phone')} value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/20 focus:ring-2 focus:ring-purple-500 outline-none transition-all" required />
           <div className="relative">
-            <input 
-              type={showPassword ? "text" : "password"} 
-              autoComplete={mode === 'login' ? "current-password" : "new-password"} 
-              placeholder={t('auth.password')} 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/20 focus:ring-2 focus:ring-purple-500 outline-none transition-all" 
-              required 
+            <input
+              type={showPassword ? "text" : "password"}
+              autoComplete={mode === 'login' ? "current-password" : "new-password"}
+              placeholder={t('auth.password')}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/20 focus:ring-2 focus:ring-purple-500 outline-none transition-all"
+              required
             />
-            <button 
+            <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-12 top-1/2 -translate-y-1/2 p-2 text-purple-400 hover:text-white transition-colors z-10"
             >
               {showPassword ? (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
               ) : (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
               )}
             </button>
           </div>
