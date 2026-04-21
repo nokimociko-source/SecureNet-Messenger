@@ -128,6 +128,20 @@ export default function SettingsView({
     } catch (error) { toast.error('Ошибка'); }
   };
 
+  const handleUnblockUser = async (userId: string) => {
+    try {
+      const response = await apiRequest(`/contacts/${userId}/block`, { method: 'DELETE' });
+      if (response.ok) {
+        toast.success('Пользователь разблокирован');
+        loadBlockedUsers();
+      } else {
+        toast.error('Не удалось разблокировать');
+      }
+    } catch (error) {
+      toast.error('Ошибка при разблокировке');
+    }
+  };
+
   const handleChangePassword = async (current: string, next: string) => {
     try {
       const response = await apiRequest('/auth/change-password', {
@@ -648,7 +662,12 @@ export default function SettingsView({
                       <p className="text-xs text-white/30 font-mono">{user.phoneNumber}</p>
                     </div>
                   </div>
-                  <button className="px-5 py-2 text-[10px] font-black text-purple-400 hover:bg-purple-500/10 rounded-full border border-purple-500/20 transition-all uppercase tracking-widest">Разблокировать</button>
+                  <button
+                    onClick={() => handleUnblockUser(user.id)}
+                    className="px-5 py-2 text-[10px] font-black text-purple-400 hover:bg-purple-500/10 rounded-full border border-purple-500/20 transition-all uppercase tracking-widest"
+                  >
+                    Разблокировать
+                  </button>
                 </div>
               ))}
             </div>
