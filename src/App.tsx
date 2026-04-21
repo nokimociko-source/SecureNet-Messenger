@@ -878,7 +878,7 @@ export default function App() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {sessions.map(session => (
+          {currentView === 'messenger' && sessions.map(session => (
             <div
               key={session.id}
               onClick={() => { setActiveSession(session); setCurrentView('messenger'); }}
@@ -888,7 +888,6 @@ export default function App() {
                 <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold ${activeSession?.id === session.id ? 'bg-white/20' : 'bg-gradient-to-tr from-indigo-500 to-purple-500 shadow-lg'}`}>
                   {session.contactId === currentUser?.id ? '🔖' : (session.contactName?.[0] || '?')}
                 </div>
-                {/* Online Indicator: Only for private chats and if user is in onlineUsers */}
                 {!session.isGroup && (session.contactId === currentUser?.id || onlineUsers.includes(session.contactId)) && (
                   <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-4 border-[#0f0a1e] rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
                 )}
@@ -902,6 +901,45 @@ export default function App() {
               </div>
             </div>
           ))}
+
+          {currentView === 'contacts' && (
+            <ContactsView
+              contacts={contacts}
+              onStartChat={(user) => {
+                const existing = sessions.find(s => s.contactId === user.id);
+                if (existing) setActiveSession(existing);
+                else {
+                  setActiveSession({
+                    id: `temp-${user.id}`,
+                    contactId: user.id,
+                    contactName: user.username,
+                    unreadCount: 0,
+                    muted: false,
+                    pinned: false,
+                    verified: true,
+                    lastMessage: {
+                      id: `msg-temp-${user.id}`,
+                      sessionId: `temp-${user.id}`,
+                      senderId: user.id,
+                      content: 'Начните общение',
+                      timestamp: Date.now() / 1000,
+                      type: 'text',
+                      status: 'sent',
+                      encrypted: true
+                    }
+                  });
+                }
+                setCurrentView('messenger');
+              }}
+              onCreateGroup={() => setShowCreateGroup(true)}
+            />
+          )}
+
+          {currentView === 'feed' && (
+            <div className="flex-1 overflow-y-auto">
+              <FeedPage currentUser={currentUser!} contacts={contacts} onSign={signData} />
+            </div>
+          )}
         </div>
         <div className="glass p-4 flex justify-around">
           <button onClick={() => setCurrentView('messenger')} className={`p-2 transition-all ${currentView === 'messenger' ? 'text-purple-400 scale-110' : 'text-white/40 hover:text-white'}`}>
