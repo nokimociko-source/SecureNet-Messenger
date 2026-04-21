@@ -1,12 +1,16 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 
-const isNative = !!(window as any).__TAURI__ || !!(window as any).Capacitor;
-const API_BASE_URL = isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api';
+export const isNative = !!(window as any).__TAURI__ || !!(window as any).Capacitor;
+const DEFAULT_API_URL = isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api';
+
+// Use localStorage to persist user-defined API URL
+const getApiBase = () => localStorage.getItem('custom_api_url') || DEFAULT_API_URL;
 
 export const apiRequest = async (endpoint: string, options: RequestInit = {}): Promise<Response> => {
   const token = localStorage.getItem('token');
   const fingerprint = localStorage.getItem('deviceFingerprint');
+  const API_BASE_URL = getApiBase();
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
   
   const headers: Record<string, string> = {
@@ -20,9 +24,10 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}): P
   }
   
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout for mobile
 
   try {
+    console.log(`🚀 API Request: ${options.method || 'GET'} ${url}`);
     const response = await fetch(url, {
       ...options,
       headers,
@@ -30,7 +35,7 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}): P
     });
     clearTimeout(timeoutId);
 
-    if (response.status === 401) {
+    if (response.status === 401 && !url.includes('/auth/login')) {
       localStorage.removeItem('token');
       localStorage.removeItem('currentUser');
       window.location.href = '/login';
@@ -40,8 +45,9 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}): P
     return response;
   } catch (error: any) {
     clearTimeout(timeoutId);
+    console.error(`❌ API Error (${url}):`, error);
     if (error.name === 'AbortError') {
-      throw new Error('Request timed out');
+      throw new Error('Сервер не отвечает. Проверьте адрес или подключение.');
     }
     throw error;
   }
@@ -76,6 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (phone: string, pass: string): Promise<{ success: boolean; requires2FA?: boolean; tempToken?: string }> => {
     try {
+      const API_BASE_URL = getApiBase();
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,6 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const verify2FA = async (tempToken: string, code: string): Promise<boolean> => {
     try {
+      const API_BASE_URL = getApiBase();
       const response = await fetch(`${API_BASE_URL}/auth/2fa/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -127,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (phone: string, username: string, pass: string, pubKey: string): Promise<boolean> => {
     try {
+      const API_BASE_URL = getApiBase();
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

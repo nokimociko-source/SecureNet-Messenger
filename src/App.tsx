@@ -11,7 +11,7 @@ import { DeviceManager } from './components/DeviceManager';
 import { FeedPage } from './pages/FeedPage';
 import ContactsView from './components/ContactsView';
 import { Message, User, Session } from './types';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth, isNative } from './contexts/AuthContext';
 import { useI18n } from './contexts/I18nContext';
 import { generateDeviceFingerprint, registerDevice, validateDevice } from './crypto/device';
 import PasscodeUnlock from './components/PasscodeUnlock';
@@ -109,16 +109,25 @@ export default function App() {
 
     // ✅ SECURITY UPGRADE: Request a One-Time Ticket first
     try {
-      const res = await fetch('/ws-ticket', {
+      const API_BASE_URL = localStorage.getItem('custom_api_url') || (isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api');
+      const ticketRes = await fetch(`${API_BASE_URL}/ws-ticket`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error('Ticket failed');
-      const { ticket } = await res.json();
+      if (!ticketRes.ok) throw new Error('Ticket failed');
+      const { ticket } = await ticketRes.json();
 
-      const isNative = !!(window as any).__TAURI__ || !!(window as any).Capacitor;
-      const host = isNative ? 'yhiscizk-securenet-messenger.hf.space' : window.location.host;
-      const protocol = isNative ? 'wss:' : (window.location.protocol === 'https:' ? 'wss:' : 'ws:');
+      let host = '';
+      let protocol = '';
+
+      if (API_BASE_URL.startsWith('http')) {
+        const url = new URL(API_BASE_URL);
+        host = url.host;
+        protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+      } else {
+        host = window.location.host;
+        protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      }
 
       const socket = new WebSocket(`${protocol}//${host}/ws?ticket=${ticket}`);
       wsRef.current = socket;
@@ -152,7 +161,7 @@ export default function App() {
                 status: msg.status || 'sent',
                 mediaId: msg.mediaId || msg.media_id,
                 fileUrl: (msg.mediaId || msg.media_id)
-                  ? `/api/media/${msg.mediaId || msg.media_id}`
+                  ? `${localStorage.getItem('custom_api_url') || (isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api')}/media/${msg.mediaId || msg.media_id}`
                   : undefined,
                 encrypted: true
               }];
@@ -316,7 +325,7 @@ export default function App() {
           type: (m.msg_type || m.type || 'text').trim() as any,
           status: m.status || 'sent',
           mediaId: m.mediaId || m.media_id,
-          fileUrl: (m.mediaId || m.media_id) ? `/api/media/${m.mediaId || m.media_id}`
+          fileUrl: (m.mediaId || m.media_id) ? `${localStorage.getItem('custom_api_url') || (isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api')}/media/${m.mediaId || m.media_id}`
             : undefined,
           encrypted: true
         }));
@@ -641,7 +650,8 @@ export default function App() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('chatId', activeSession.id);
-      const response = await fetch(`/api/media/upload`, {
+      const API_BASE_URL = localStorage.getItem('custom_api_url') || (isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api');
+      const response = await fetch(`${API_BASE_URL}/media/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: formData

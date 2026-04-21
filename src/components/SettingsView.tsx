@@ -16,6 +16,8 @@ import { ContactSyncService, SyncedContact } from '../services/ContactSyncServic
 import ContactSyncModal from './ContactSyncModal';
 
 
+const isNative = !!(window as any).__TAURI__ || !!(window as any).Capacitor;
+
 export default function SettingsView({
   currentUser,
   onUpdateUser,
@@ -32,7 +34,7 @@ export default function SettingsView({
   onStartChat?: (user: any) => void;
 }) {
   const { apiRequest } = useAuth();
-  const [activeTab, setActiveTab] = useState<'main' | 'profile' | 'security' | 'privacy' | 'blocklist' | 'devices' | 'data' | 'password' | '2fa' | 'set_phone' | 'set_lastseen' | 'set_avatar' | 'passcode' | 'usage' | 'notifications' | 'sync_contacts' | 'updates' | 'telegram'>('main');
+  const [activeTab, setActiveTab] = useState<'main' | 'profile' | 'security' | 'privacy' | 'blocklist' | 'devices' | 'data' | 'password' | '2fa' | 'set_phone' | 'set_lastseen' | 'set_avatar' | 'passcode' | 'usage' | 'notifications' | 'sync_contacts' | 'updates' | 'telegram' | 'server'>('main');
   const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
   const [devices, setDevices] = useState<any[]>([]);
   const [isPasscodeActive, setIsPasscodeActive] = useState(!!localStorage.getItem('app_passcode'));
@@ -364,7 +366,7 @@ export default function SettingsView({
           if (activeTab === 'password' || activeTab === '2fa' || activeTab === 'devices' || activeTab === 'passcode') setActiveTab('security');
           else if (activeTab === 'blocklist' || activeTab === 'set_phone' || activeTab === 'set_lastseen' || activeTab === 'set_avatar') setActiveTab('privacy');
           else if (activeTab === 'usage') setActiveTab('data');
-          else if (activeTab === 'notifications' || activeTab === 'sync_contacts' || activeTab === 'updates' || activeTab === 'telegram') setActiveTab('main');
+          else if (activeTab === 'notifications' || activeTab === 'sync_contacts' || activeTab === 'updates' || activeTab === 'telegram' || activeTab === 'server') setActiveTab('main');
           else setActiveTab('main');
         } : onBack}
         className="p-2 hover:bg-white/10 rounded-full transition-all text-purple-400"
@@ -453,6 +455,7 @@ export default function SettingsView({
               <SettingItem icon={User} title="Мой профиль" subtitle="Имя, био, номер телефона" onClick={() => setActiveTab('profile')} />
               <SettingItem icon={Bell} title="Уведомления и звуки" subtitle="Звуки, наклейки, реакции" onClick={() => setActiveTab('notifications')} />
               <SettingItem icon={Database} title="Данные и память" subtitle="Использование сети, прокси" onClick={() => setActiveTab('data')} />
+              <SettingItem icon={Server} title="Сервер API" subtitle={localStorage.getItem('custom_api_url') || 'По умолчанию'} onClick={() => setActiveTab('server')} />
             </div>
             <SectionTitle>Безопасность</SectionTitle>
             <div className="bg-white/2 rounded-[28px] border border-white/5 overflow-hidden shadow-xl">
@@ -992,6 +995,66 @@ export default function SettingsView({
             results={syncResults}
             onStartChat={(user) => onStartChat && onStartChat(user)}
           />
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTab === 'server') {
+    return (
+      <div className="flex-1 bg-[#0a0a0a] flex flex-col h-full animate-in slide-in-from-right duration-300">
+        {renderHeader('Настройки сервера')}
+        <div className="max-w-2xl mx-auto w-full p-6 space-y-8">
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-[24px] p-4 flex gap-4">
+            <AlertCircle className="text-amber-500 shrink-0" size={20} />
+            <p className="text-xs text-amber-500/80 leading-relaxed">
+              Изменение адреса сервера может привести к потере доступа к текущему аккаунту. 
+              Используйте это только если вы знаете, что делаете.
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            <SectionTitle className="mt-0">Адрес API</SectionTitle>
+            <div className="space-y-2">
+              <input 
+                type="text" 
+                placeholder="https://your-server.com/api"
+                defaultValue={localStorage.getItem('custom_api_url') || ''}
+                id="api-url-input"
+                className="w-full p-4 bg-white/5 border border-white/10 rounded-[20px] text-white font-mono text-sm focus:ring-2 focus:ring-purple-500 outline-none transition-all"
+              />
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    const input = document.getElementById('api-url-input') as HTMLInputElement;
+                    const val = input.value.trim();
+                    if (val) {
+                      localStorage.setItem('custom_api_url', val);
+                      toast.success('Сервер обновлен. Перезапустите приложение.');
+                      setTimeout(() => window.location.reload(), 1500);
+                    }
+                  }}
+                  className="flex-1 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition-all"
+                >
+                  Сохранить
+                </button>
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem('custom_api_url');
+                    toast.success('Настройки сброшены');
+                    setTimeout(() => window.location.reload(), 1000);
+                  }}
+                  className="px-4 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all"
+                >
+                  Сброс
+                </button>
+              </div>
+            </div>
+            <p className="text-[10px] text-white/30 px-4">
+              Пример: https://api.myserver.com/api<br/>
+              По умолчанию: {isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api'}
+            </p>
+          </div>
         </div>
       </div>
     );

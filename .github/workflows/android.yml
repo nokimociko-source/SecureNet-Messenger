@@ -36,11 +36,6 @@ jobs:
 
     - name: Sync Capacitor
       run: |
-        npm run build
-        echo "Contents of dist folder:"
-        ls -la dist
-        mkdir -p android/app/src/main/assets/public
-        cp -rv dist/* android/app/src/main/assets/public/
         npx cap sync android
         echo "Verifying assets in Android folder:"
         ls -R android/app/src/main/assets/public
