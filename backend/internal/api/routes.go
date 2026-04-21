@@ -1662,8 +1662,8 @@ func authMiddleware(secret string, db *sql.DB) gin.HandlerFunc {
 			}
 		}
 		
-		// Fallback to query parameter for media/file requests
-		if tokenString == "" {
+		// Fallback to query parameter for legacy media GET links only.
+		if tokenString == "" && c.Request.Method == http.MethodGet && strings.HasPrefix(c.Request.URL.Path, "/api/media/") {
 			tokenString = c.Query("token")
 		}
 

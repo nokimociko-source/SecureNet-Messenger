@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -13,7 +14,6 @@ import (
 	"securenet-backend/internal/repository/postgres"
 	"securenet-backend/internal/services"
 	"securenet-backend/internal/websocket"
-	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -56,10 +56,22 @@ func main() {
 
 	router := gin.Default()
 
+	allowedOrigins := map[string]bool{
+		"http://localhost:5173": true,
+	}
+	if raw := os.Getenv("CORS_ALLOWED_ORIGINS"); raw != "" {
+		for _, origin := range strings.Split(raw, ",") {
+			o := strings.TrimSpace(origin)
+			if o != "" {
+				allowedOrigins[o] = true
+			}
+		}
+	}
+
 	// ✅ ROBUST CORS MIDDLEWARE
 	router.Use(func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
-		if origin == "http://localhost:5173" {
+		if allowedOrigins[origin] {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 		}
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")

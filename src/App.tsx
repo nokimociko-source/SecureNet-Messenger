@@ -610,7 +610,7 @@ export default function App() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('chatId', activeSession.id);
-      const response = await fetch(`http://localhost:8080/api/media/upload`, {
+      const response = await fetch(`/api/media/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: formData
