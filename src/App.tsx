@@ -107,15 +107,20 @@ export default function App() {
       wsRef.current = null;
     }
 
-    // ✅ SECURITY UPGRADE: Request a One-Time Ticket first
-    try {
-      const API_BASE_URL = localStorage.getItem('custom_api_url') || (isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api');
-      const ticketRes = await fetch(`${API_BASE_URL}/ws-ticket`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!ticketRes.ok) throw new Error('Ticket failed');
-      const { ticket } = await ticketRes.json();
+      // ✅ SECURITY UPGRADE: Request a One-Time Ticket first, with fallback
+      let ticket = '';
+      try {
+        const ticketRes = await fetch(`${API_BASE_URL}/ws-ticket`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (ticketRes.ok) {
+          const data = await ticketRes.json();
+          ticket = data.ticket;
+        }
+      } catch (e) {
+        console.warn('⚠️ WebSocket ticket acquisition failed, falling back to direct connection');
+      }
 
       let host = '';
       let protocol = '';
@@ -129,7 +134,8 @@ export default function App() {
         protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       }
 
-      const socket = new WebSocket(`${protocol}//${host}/ws?ticket=${ticket}`);
+      const wsUrl = ticket ? `${protocol}//${host}/ws?ticket=${ticket}` : `${protocol}//${host}/ws?token=${token}`;
+      const socket = new WebSocket(wsUrl);
       wsRef.current = socket;
 
       socket.onopen = () => {

@@ -104,8 +104,8 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok", "time": time.Now(), "app": "Catlover Messenger"})
 	})
 
-	// WebSocket Ticket (Protected by CORS middleware)
-	router.POST("/ws-ticket", func(c *gin.Context) {
+	// --- WebSocket Ticket Handlers (Root & API group for compatibility) ---
+	wsTicketHandler := func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
 			c.AbortWithStatus(401)
@@ -119,7 +119,16 @@ func main() {
 		}
 		ticket := hub.IssueTicket(claims.UserID, claims.Username)
 		c.JSON(200, gin.H{"ticket": ticket})
-	})
+	}
+
+	router.POST("/ws-ticket", wsTicketHandler)
+	apiGroup := router.Group("/api")
+	{
+		apiGroup.POST("/ws-ticket", wsTicketHandler)
+	}
+
+	// API routes (including WebSocket with Ticket auth)
+	api.SetupRoutes(router, database, hub, notifSvc)
 
 	// WebSocket Connection (Uses ticket issued above)
 	router.GET("/ws", func(c *gin.Context) {
