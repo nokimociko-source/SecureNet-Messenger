@@ -19,6 +19,9 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
+    - name: Check Java Version
+      run: java -version
+
     - name: Set up Node.js 22
       uses: actions/setup-node@v4
       with:
