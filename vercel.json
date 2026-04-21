@@ -2,15 +2,15 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://YOUR_KOYEB_APP_URL/api/:path*"
+      "destination": "https://yhiscizk-securenet-messenger.hf.space/api/:path*"
     },
     {
       "source": "/ws-ticket",
-      "destination": "https://YOUR_KOYEB_APP_URL/ws-ticket"
+      "destination": "https://yhiscizk-securenet-messenger.hf.space/ws-ticket"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://YOUR_KOYEB_APP_URL/uploads/:path*"
+      "destination": "https://yhiscizk-securenet-messenger.hf.space/uploads/:path*"
     }
   ]
 }

@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -30,8 +30,12 @@ COPY --from=builder /app/main .
 # Create uploads directory
 RUN mkdir -p uploads
 
-# Expose port
-EXPOSE 8080
+# Expose port (Hugging Face expects 7860)
+EXPOSE 7860
+
+# Set environment variables
+ENV PORT=7860
+ENV GIN_MODE=release
 
 # Command to run
 CMD ["./main"]
