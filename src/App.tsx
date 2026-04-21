@@ -45,7 +45,7 @@ export default function App() {
   
   const [wsConnected, setWsConnected] = useState(false);
   const [auditLog, setAuditLog] = useState<storage.AuditLogEntry[]>([]);
-  const [masterKey, setMasterKey] = useState<crypto.CryptoKey | null>(null);
+  const [masterKey, setMasterKey] = useState<CryptoKey | null>(null);
   
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showDeviceManager, setShowDeviceManager] = useState(false);
