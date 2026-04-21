@@ -1,0 +1,35 @@
+{
+  "auth": {
+    "title": "Catlover",
+    "subtitle": "Connecting feline enthusiasts securely",
+    "features": {
+      "e2ee": "Zero-Knowledge E2EE",
+      "hardware": "Hardware-backed encryption",
+      "better": "Better than Signal + Telegram"
+    },
+    "login": "Login",
+    "register": "Create Secure Account",
+    "name": "Your Name",
+    "phone": "Phone Number",
+    "password": "Password",
+    "needAccount": "Need an account? Register",
+    "haveAccount": "Have an account? Login"
+  },
+  "nav": {
+    "chats": "Chats",
+    "contacts": "Contacts",
+    "feed": "Feed",
+    "settings": "Settings",
+    "security": "Security",
+    "devices": "Devices",
+    "group": "Group",
+    "savedMessages": "Saved Messages"
+  },
+  "feed": {
+    "title": "Social Feed",
+    "subtitle": "Share & Connect",
+    "placeholder": "Share something...",
+    "publish": "Publish",
+    "whatsNew": "What's new?"
+  }
+}

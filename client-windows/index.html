@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catlover Windows</title>
+    <style>
+        body {
+            background: #0f172a;
+            color: #f8fafc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 1rem;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        h1 { color: #818cf8; margin-bottom: 0.5rem; }
+        p { color: #94a3b8; }
+        .status { margin-top: 1rem; font-weight: bold; color: #10b981; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🐾</div>
+        <h1>Catlover Desktop</h1>
+        <p>Нативное Windows-приложение на базе Tauri & Rust</p>
+        <div id="status" class="status">Инициализация защищенного хранилища...</div>
+    </div>
+
+    <script>
+        // ✅ Interacting with Rust backend
+        const { invoke } = window.__TAURI__.tauri;
+        
+        async function initStorage() {
+            try {
+                await invoke('secure_save_key', { keyName: 'init_check', keyValue: 'active' });
+                document.getElementById('status').innerText = '✅ Защищенное хранилище готово';
+            } catch (e) {
+                console.error(e);
+                document.getElementById('status').innerText = '❌ Ошибка инициализации';
+            }
+        }
+
+        initStorage();
+    </script>
+</body>
+</html>

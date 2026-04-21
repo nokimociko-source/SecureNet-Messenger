@@ -1,0 +1,35 @@
+{
+  "auth": {
+    "title": "Catlover",
+    "subtitle": "Твой котик — твоя крепость",
+    "features": {
+      "e2ee": "Zero-Knowledge E2EE",
+      "hardware": "Аппаратная защита ключей",
+      "better": "Лучше чем Signal + Telegram"
+    },
+    "login": "Войти",
+    "register": "Создать защищенный аккаунт",
+    "name": "Ваше имя",
+    "phone": "Номер телефона",
+    "password": "Пароль",
+    "needAccount": "Нет аккаунта? Регистрация",
+    "haveAccount": "Есть аккаунт? Войти"
+  },
+  "nav": {
+    "chats": "Чаты",
+    "contacts": "Контакты",
+    "feed": "Лента",
+    "settings": "Настройки",
+    "security": "Безопасность",
+    "devices": "Устройства",
+    "group": "Группа",
+    "savedMessages": "Избранное"
+  },
+  "feed": {
+    "title": "Социальная лента",
+    "subtitle": "Делитесь и общайтесь",
+    "placeholder": "Поделитесь чем-нибудь...",
+    "publish": "Опубликовать",
+    "whatsNew": "Что нового?"
+  }
+}

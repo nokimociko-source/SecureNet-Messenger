@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Catlover</string>
+    <string name="welcome_message">Welcome to Catlover - Your Secure Feline Community</string>
+    <string name="security_level">Security Status: Military-Grade (E2EE)</string>
+</resources>

@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_TYPE=postgres
+      - DB_URL=postgres://user:password@db:5432/securenet?sslmode=disable
+      - REDIS_URL=redis:6379
+      - SPANNER_EMULATOR_HOST=spanner:9010
+      - BIGTABLE_EMULATOR_HOST=bigtable:9000
+    depends_on:
+      - db
+      - redis
+      - spanner
+      - bigtable
+    networks:
+      - securenet-network
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=securenet
+    ports:
+      - "5432:5432"
+    networks:
+      - securenet-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - securenet-network
+
+  # ✅ Cloud-Native Emulators for 70M scalability testing
+  spanner:
+    image: gcr.io/cloud-spanner-emulator/emulator:latest
+    ports:
+      - "9010:9010"
+      - "9020:9020"
+    networks:
+      - securenet-network
+
+  bigtable:
+    image: google/cloud-sdk:latest
+    command: gcloud beta emulators bigtable start --host-port=0.0.0.0:9000
+    ports:
+      - "9000:9000"
+    networks:
+      - securenet-network
+
+  # ✅ Basic WAF / Reverse Proxy
+  gateway:
+    image: nginx:alpine
+    volumes:
+      - ./infra/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    networks:
+      - securenet-network
+
+networks:
+  securenet-network:
+    driver: bridge
