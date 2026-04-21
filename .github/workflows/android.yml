@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
     - uses: actions/checkout@v4
 
@@ -19,13 +21,10 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    - name: Check Java Version
-      run: java -version
-
-    - name: Set up Node.js 22
+    - name: Set up Node.js 24
       uses: actions/setup-node@v4
       with:
-        node-version: '22'
+        node-version: '24'
         cache: 'npm'
 
     - name: Install dependencies
@@ -36,8 +35,11 @@ jobs:
 
     - name: Sync Capacitor
       run: |
+        npm run build
+        mkdir -p android/app/src/main/assets/public
+        cp -rv dist/* android/app/src/main/assets/public/
         npx cap sync android
-        echo "Verifying assets in Android folder:"
+        echo "Final verification of assets:"
         ls -R android/app/src/main/assets/public
 
     - name: Grant execute permission for gradlew
