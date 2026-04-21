@@ -1,0 +1,153 @@
+package main
+
+import (
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"securenet-backend/internal/api"
+	"securenet-backend/internal/auth"
+	"securenet-backend/internal/config"
+	"securenet-backend/internal/db"
+	"securenet-backend/internal/repository/postgres"
+	"securenet-backend/internal/services"
+	"securenet-backend/internal/websocket"
+
+	"github.com/joho/godotenv"
+)
+
+func main() {
+	// Load .env file
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using system environment variables")
+	}
+
+	// Load configuration
+	cfg := config.Load()
+
+	// Initialize database
+	log.Printf("🔌 Connecting to database at %s...", cfg.DatabaseURL)
+	database, err := db.Init(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal("❌ Failed to connect to database:", err)
+	}
+	defer database.Close()
+	log.Println("✅ Database connected")
+
+	// Run migrations
+	log.Println("🔄 Running migrations...")
+	if err := db.Migrate(database); err != nil {
+		log.Printf("⚠️ Migration warning: %v", err)
+	}
+	log.Println("✅ Migrations finished")
+
+	// Initialize Notification Service
+	notifSvc := services.NewNotificationService(database)
+
+	// Initialize repositories for WS
+	chatRepo := postgres.NewChatRepo(database)
+
+	// Setup WebSocket hub
+	log.Println("⚙️ Starting WebSocket hub...")
+	hub := websocket.NewHub(chatRepo, notifSvc)
+	go hub.Run()
+
+	// Setup Gin router
+	if os.Getenv("GIN_MODE") == "release" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	router := gin.Default()
+
+	// CORS Configuration
+	allowedOrigins := map[string]bool{
+		"http://localhost:5173": true,
+		"http://127.0.0.1:5173": true,
+		"http://localhost:5174": true,
+		"http://127.0.0.1:5174": true,
+	}
+	if raw := os.Getenv("CORS_ALLOWED_ORIGINS"); raw != "" {
+		for _, origin := range strings.Split(raw, ",") {
+			o := strings.TrimSpace(origin)
+			if o != "" {
+				allowedOrigins[o] = true
+			}
+		}
+	}
+
+	// Robust CORS Middleware
+	router.Use(func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+		if allowedOrigins[origin] {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		} else if origin != "" {
+			log.Printf("⚠️ CORS: Rejected origin %s", origin)
+		}
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, X-Auth-Token")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	})
+
+	// Health check
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok", "time": time.Now(), "app": "Catlover Messenger"})
+	})
+
+	// WebSocket Ticket (Protected by CORS middleware)
+	router.POST("/ws-ticket", func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			c.AbortWithStatus(401)
+			return
+		}
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		claims, err := auth.ValidateToken(token, cfg.JWTSecret)
+		if err != nil {
+			c.AbortWithStatus(401)
+			return
+		}
+		ticket := hub.IssueTicket(claims.UserID, claims.Username)
+		c.JSON(200, gin.H{"ticket": ticket})
+	})
+
+	// WebSocket Connection (Uses ticket issued above)
+	router.GET("/ws", func(c *gin.Context) {
+		websocket.ServeWs(hub, database, c.Writer, c.Request)
+	})
+
+	// --- Static Files ---
+	// Using absolute path for reliability
+	executablePath, _ := os.Getwd()
+	uploadsDir := filepath.Join(executablePath, "uploads")
+	router.Static("/uploads", uploadsDir)
+
+	// API routes (including WebSocket with Ticket auth)
+	api.SetupRoutes(router, database, hub, notifSvc)
+
+	// Fallback for 404
+	router.NoRoute(func(c *gin.Context) {
+		c.JSON(404, gin.H{"error": "Route not found", "path": c.Request.URL.Path})
+	})
+
+	// Start server
+	port := cfg.Port
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("🚀 Catlover Server starting on port %s", port)
+	if err := router.Run(":" + port); err != nil {
+		log.Fatal("❌ Failed to start server:", err)
+	}
+}

@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 
-const API_BASE_URL = '/api';
+const isNative = !!(window as any).__TAURI__ || !!(window as any).Capacitor;
+const API_BASE_URL = isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api';
 
 export const apiRequest = async (endpoint: string, options: RequestInit = {}): Promise<Response> => {
   const token = localStorage.getItem('token');

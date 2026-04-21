@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Catlover</string>
+    <string name="title_activity_main">Catlover</string>
+    <string name="package_name">com.catlover.messenger</string>
+    <string name="custom_url_scheme">com.catlover.messenger</string>
+</resources>
