@@ -62,6 +62,7 @@ func main() {
 
 	router := gin.Default()
 
+	// CORS Configuration
 	allowedOrigins := map[string]bool{
 		"http://localhost:5173": true,
 		"http://127.0.0.1:5173": true,
@@ -75,7 +76,7 @@ func main() {
 		}
 	}
 
-	// ✅ ROBUST CORS MIDDLEWARE
+	// Robust CORS Middleware
 	router.Use(func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
 		if allowedOrigins[origin] {
@@ -97,10 +98,10 @@ func main() {
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok", "time": time.Now()})
+		c.JSON(200, gin.H{"status": "ok", "time": time.Now(), "app": "Catlover Messenger"})
 	})
 
-	// ✅ WebSocket Ticket (Protected by CORS middleware)
+	// WebSocket Ticket (Protected by CORS middleware)
 	router.POST("/ws-ticket", func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
@@ -117,7 +118,7 @@ func main() {
 		c.JSON(200, gin.H{"ticket": ticket})
 	})
 
-	// ✅ FALLBACK FOR 404 (Ensures CORS headers even on 404)
+	// Fallback for 404
 	router.NoRoute(func(c *gin.Context) {
 		c.JSON(404, gin.H{"error": "Route not found", "path": c.Request.URL.Path})
 	})
@@ -131,7 +132,7 @@ func main() {
 		port = "8080"
 	}
 
-	log.Printf("🚀 Server starting on port %s", port)
+	log.Printf("🚀 Catlover Server starting on port %s", port)
 	if err := router.Run(":" + port); err != nil {
 		log.Fatal("❌ Failed to start server:", err)
 	}

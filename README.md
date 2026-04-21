@@ -33,5 +33,33 @@ docker-compose up -d --build
 ## 📜 Legal
 See [PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) and [TERMS_OF_SERVICE.md](docs/TERMS_OF_SERVICE.md).
 
+<<<<<<< HEAD
 ---
 © 2026 DemonestoriCat Systems. All rights reserved.
+=======
+## 🏗 CI/CD
+Automated pipelines via GitHub Actions:
+- **Backend**: Build, Test, and Security Scan (gosec).
+- **Frontend**: Type-check (tsc) and Production Build.
+
+## 🔄 Self-hosted Updates (GitHub/Telegram)
+If you do not use Play Market/App Store, SecureNet can expose update metadata from backend:
+
+`GET /api/updates/latest?platform=android|windows`
+
+Configure via environment variables:
+
+- `ANDROID_LATEST_VERSION`
+- `ANDROID_APK_URL`
+- `ANDROID_APK_SHA256`
+- `ANDROID_RELEASE_NOTES`
+- `WINDOWS_LATEST_VERSION`
+- `WINDOWS_INSTALLER_URL`
+- `WINDOWS_INSTALLER_SHA256`
+- `WINDOWS_RELEASE_NOTES`
+
+Use HTTPS URLs only (GitHub Releases or trusted Telegram CDN links), and always publish SHA-256 for integrity checks.
+
+## 📜 License
+Private / Proprietary
+>>>>>>> origin/codex/verify-request-cu3ass
