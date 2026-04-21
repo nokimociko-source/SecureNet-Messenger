@@ -29,7 +29,8 @@ body {
 }
 
 /* Global Input Reset for Premium Feel */
-input, textarea {
+input,
+textarea {
   background: transparent;
   border: 1px solid var(--glass-border);
   color: white;
@@ -37,7 +38,8 @@ input, textarea {
   transition: all 0.2s ease;
 }
 
-input:focus, textarea:focus {
+input:focus,
+textarea:focus {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
 }
@@ -93,8 +95,15 @@ input:focus, textarea:focus {
 
 /* Animations */
 @keyframes slideIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-message {
