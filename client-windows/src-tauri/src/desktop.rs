@@ -1,7 +1,7 @@
 use tauri::{
     CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayMenuItem, SystemTrayEvent
 };
-use tauri_plugin_notification::NotificationExt;
+use tauri::api::notification::Notification;
 use keyring::Entry;
 
 // ✅ Fix #5.2: Enhanced Windows Security & UX
@@ -21,8 +21,7 @@ pub fn setup_tray() -> SystemTray {
 
 #[tauri::command]
 pub fn send_notification(app: tauri::AppHandle, title: &str, body: &str) {
-    app.notification()
-        .builder()
+    Notification::new(&app.config().tauri.bundle.identifier)
         .title(title)
         .body(body)
         .show()
