@@ -269,27 +269,35 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			notes   string
 		}
 
+		// Use environment variables with sensible defaults to avoid 404
+		androidVersion := os.Getenv("ANDROID_LATEST_VERSION")
+		if androidVersion == "" { androidVersion = "0.1.0" }
+		
+		androidUrl := os.Getenv("ANDROID_APK_URL")
+		if androidUrl == "" { androidUrl = "https://github.com/nokimociko-source/SecureNet-Messenger/releases" }
+
+		winVersion := os.Getenv("WINDOWS_LATEST_VERSION")
+		if winVersion == "" { winVersion = "0.1.0" }
+
+		winUrl := os.Getenv("WINDOWS_INSTALLER_URL")
+		if winUrl == "" { winUrl = "https://github.com/nokimociko-source/SecureNet-Messenger/releases" }
+
 		cfgMap := map[string]updateInfo{
 			"android": {
-				version: strings.TrimSpace(os.Getenv("ANDROID_LATEST_VERSION")),
-				url:     strings.TrimSpace(os.Getenv("ANDROID_APK_URL")),
-				sha256:  strings.TrimSpace(os.Getenv("ANDROID_APK_SHA256")),
-				notes:   strings.TrimSpace(os.Getenv("ANDROID_RELEASE_NOTES")),
+				version: androidVersion,
+				url:     androidUrl,
+				sha256:  os.Getenv("ANDROID_APK_SHA256"),
+				notes:   os.Getenv("ANDROID_RELEASE_NOTES"),
 			},
 			"windows": {
-				version: strings.TrimSpace(os.Getenv("WINDOWS_LATEST_VERSION")),
-				url:     strings.TrimSpace(os.Getenv("WINDOWS_INSTALLER_URL")),
-				sha256:  strings.TrimSpace(os.Getenv("WINDOWS_INSTALLER_SHA256")),
-				notes:   strings.TrimSpace(os.Getenv("WINDOWS_RELEASE_NOTES")),
+				version: winVersion,
+				url:     winUrl,
+				sha256:  os.Getenv("WINDOWS_INSTALLER_SHA256"),
+				notes:   os.Getenv("WINDOWS_RELEASE_NOTES"),
 			},
 		}
 
 		upd := cfgMap[platform]
-		if upd.version == "" || upd.url == "" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "update metadata not configured"})
-			return
-		}
-
 		c.JSON(http.StatusOK, gin.H{
 			"platform":          platform,
 			"version":           upd.version,
@@ -303,6 +311,19 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 	authorized := r.Group("/api")
 	authorized.Use(authMiddleware(cfg.JWTSecret))
 	{
+		// WebSocket Ticket
+		authorized.POST("/ws-ticket", func(c *gin.Context) {
+			userIDStr := c.GetString("userId")
+			username := c.GetString("username")
+			userID, err := uuid.Parse(userIDStr)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+				return
+			}
+			ticket := hub.IssueTicket(userID, username)
+			c.JSON(http.StatusOK, gin.H{"ticket": ticket})
+		})
+
 		// Audit (Admin only)
 		authorized.GET("/audit/stats", func(c *gin.Context) {
 			role := c.GetString("role")
