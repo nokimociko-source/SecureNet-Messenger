@@ -212,57 +212,46 @@ export default function ChatView({
 
   return (
     <div className="h-screen flex flex-col bg-[#0f0a1e]">
-      {/* Header */}
-      <div className="glass px-6 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3 flex items-center justify-between z-10 shadow-2xl border-b border-white/5">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-all text-white/70 hover:text-white active:scale-90">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+      <div className="glass px-4 sm:px-6 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3 flex items-center justify-between z-10 shadow-2xl border-b border-white/5">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-all text-white/70 hover:text-white active:scale-90 flex-shrink-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
           </button>
-
-          <div className="relative group cursor-pointer">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center font-bold text-white shadow-lg group-hover:scale-105 transition-transform">
+          
+          <div className="relative flex-shrink-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center font-bold text-white shadow-lg">
               {session.contactName[0]}
             </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0f0a1e] rounded-full"></div>
+            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-[#0f0a1e] rounded-full"></div>
           </div>
-
-          <div>
-            <h3 className="font-bold text-white text-base leading-tight flex items-center gap-1.5">
-              {session.contactName}
+          
+          <div className="min-w-0">
+            <h3 className="font-bold text-white text-sm sm:text-base leading-tight flex items-center gap-1">
+              <span className="truncate">{session.contactId === currentUser.id ? 'Избранное' : session.contactName}</span>
               {session.verified && (
-                <svg className="text-blue-400" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="text-blue-400 flex-shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.6L6.7 13.2l1.4-1.4 2 2 4.5-4.5 1.4 1.4-5.9 5.9z" />
                 </svg>
               )}
             </h3>
-            <span className="text-xs text-purple-300/70">
+            <span className="text-[10px] sm:text-xs text-purple-300/70 truncate block">
               {isTyping && session.contactId !== currentUser.id ? 'печатает...' : 'онлайн'}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 relative">
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 mr-2">
-            <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
-            <span className="text-[10px] uppercase tracking-wider font-black text-purple-300">Шифрование активно</span>
-          </div>
-
-          <button className="p-2 hover:bg-white/10 rounded-full transition-all text-white/40 hover:text-white">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
-          </button>
-
+        <div className="flex items-center gap-1 sm:gap-2">
           <button onClick={onCall} className="p-2 hover:bg-white/10 rounded-full transition-all text-white/40 hover:text-white">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.28-2.28a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.28-2.28a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
           </button>
 
           <button onClick={onVideoCall} className="p-2 hover:bg-white/10 rounded-full transition-all text-white/40 hover:text-white">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>
           </button>
 
-          <div className="relative">
-            <button onClick={() => setShowMenu(!showMenu)} className={`p-2 hover:bg-white/10 rounded-full transition-all ${showMenu ? 'bg-white/20 text-white' : 'text-white/50'}`}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
-            </button>
+          <button onClick={() => setShowMenu(!showMenu)} className={`p-2 hover:bg-white/10 rounded-full transition-all ${showMenu ? 'bg-white/20 text-white' : 'text-white/50'}`}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
+          </button>
 
             {showMenu && (
               <>

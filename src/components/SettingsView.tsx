@@ -13,9 +13,6 @@ import { PasswordChange } from './PasswordChange';
 import { TwoFactorSetup } from './TwoFactorSetup';
 import PasscodeSetup from './PasscodeSetup';
 import { PushNotifications } from '@capacitor/push-notifications';
-import { App } from '@capacitor/app';
-import { Device } from '@capacitor/device';
-import { Browser } from '@capacitor/browser';
 import { ContactSyncService, SyncedContact } from '../services/ContactSyncService';
 import ContactSyncModal from './ContactSyncModal';
 
@@ -403,7 +400,7 @@ export default function SettingsView({
   };
 
   const renderHeader = (title: string, showBackToMain = true) => (
-    <div className="flex items-center gap-4 px-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-6 border-b border-white/5 bg-white/2 sticky top-0 backdrop-blur-xl z-20">
+    <div className={`flex items-center gap-4 px-6 ${isNative ? 'pt-10' : 'pt-[calc(1.5rem+env(safe-area-inset-top))]'} pb-6 border-b border-white/5 bg-white/2 sticky top-0 backdrop-blur-xl z-20`}>
       <button 
         onClick={showBackToMain ? () => {
           if (activeTab === 'password' || activeTab === '2fa' || activeTab === 'devices' || activeTab === 'passcode') setActiveTab('security');

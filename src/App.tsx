@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { App as CapacitorApp } from '@capacitor/app';
 import toast, { Toaster } from 'react-hot-toast';
 import * as crypto from './crypto/webcrypto';
 import * as storage from './crypto/storage';
@@ -73,6 +74,39 @@ export default function App() {
     targetUser: null
   });
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+
+  // ✅ Android Back Button Handling
+  useEffect(() => {
+    if (!isNative) return;
+
+    const backListener = CapacitorApp.addListener('backButton', () => {
+      if (callData.isOpen) {
+        return; // Don't exit during calls
+      }
+
+      if (showCreateGroup) {
+        setShowCreateGroup(false);
+        return;
+      }
+
+      if (showDeviceManager) {
+        setShowDeviceManager(false);
+        return;
+      }
+
+      if (activeSession) {
+        setActiveSession(null);
+      } else if (currentView !== 'messenger' && currentView !== 'auth') {
+        setCurrentView('messenger');
+      } else {
+        CapacitorApp.exitApp();
+      }
+    });
+
+    return () => {
+      backListener.then((l: any) => l.remove());
+    };
+  }, [activeSession, currentView, showCreateGroup, showDeviceManager, callData.isOpen]);
 
   // Helper Functions
   const urlBase64ToUint8Array = (base64String: string) => {
@@ -861,19 +895,28 @@ export default function App() {
       {isAppLocked && <PasscodeUnlock hashedPasscode={localStorage.getItem('app_passcode') || ''} onUnlock={() => setIsAppLocked(false)} />}
       <Toaster position="top-right" />
       <div className={`w-full sm:w-[350px] lg:w-[400px] flex-shrink-0 border-r border-white/5 flex flex-col ${ (activeSession || ['settings', 'admin', 'security'].includes(currentView)) ? 'hidden sm:flex' : 'flex'}`}>
-        <div className="glass px-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-4 flex items-center justify-between border-b border-white/5 shadow-xl">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 flex items-center justify-center font-bold shadow-lg shadow-purple-900/40">C</div>
-            <h1 className="font-bold text-xl tracking-tight">Catlover</h1>
+        <div className="glass px-6 pt-[calc(1.25rem+env(safe-area-inset-top))] pb-5 flex items-center justify-between border-b border-white/5 shadow-2xl relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center font-black text-xl shadow-lg shadow-purple-900/40 rotate-3 group-hover:rotate-0 transition-transform duration-500 ring-2 ring-white/10">
+              C
+            </div>
+            <div>
+              <h1 className="font-black text-2xl tracking-tighter text-white">Catlover</h1>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-purple-300/60">Защищено</span>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {(currentUser?.role === 'admin') && (
-              <button onClick={() => setCurrentView('admin')} className="p-2 hover:bg-purple-500/20 text-purple-400 rounded-full transition-all" title="Админ-панель">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+          <div className="flex items-center gap-1 relative z-10">
+            {currentUser?.role === 'admin' && (
+              <button onClick={() => setCurrentView('admin')} className="p-2.5 hover:bg-purple-500/20 text-purple-400 rounded-xl transition-all hover:scale-110 active:scale-95" title="Админ-панель">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
               </button>
             )}
-            <button onClick={() => setCurrentView('settings')} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+            <button onClick={() => setCurrentView('settings')} className="p-2.5 hover:bg-white/10 text-white/50 hover:text-white rounded-xl transition-all hover:rotate-45 active:scale-95">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
             </button>
           </div>
         </div>

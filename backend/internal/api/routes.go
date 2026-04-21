@@ -310,12 +310,25 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 				return
 			}
-			stats, err := auditService.GetAuditLogStats(nil, nil, nil)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
+
+			// Get Real Stats
+			var totalUsers, messagesToday int
+			db.QueryRow("SELECT COUNT(*) FROM users").Scan(&totalUsers)
+			
+			// Get message count for last 24h
+			db.QueryRow("SELECT COUNT(*) FROM messages WHERE timestamp > $1", time.Now().Add(-24*time.Hour).Unix()).Scan(&messagesToday)
+
+			// Get active connections from hub
+			activeConnections := 0
+			if hub != nil {
+				activeConnections = len(hub.UserMap)
 			}
-			c.JSON(http.StatusOK, stats)
+
+			c.JSON(http.StatusOK, gin.H{
+				"totalUsers":        totalUsers,
+				"activeConnections": activeConnections,
+				"messagesToday":     messagesToday,
+			})
 		})
 
 		authorized.GET("/audit/logs", func(c *gin.Context) {
@@ -606,6 +619,29 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 				return
 			}
 			c.JSON(http.StatusOK, chats)
+		})
+
+		authorized.POST("/chats", func(c *gin.Context) {
+			var req struct {
+				ContactID string `json:"contactId" binding:"required"`
+			}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			userID, _ := uuid.Parse(c.GetString("userId"))
+			contactID, err := uuid.Parse(req.ContactID)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contactId"})
+				return
+			}
+
+			chat, err := chatSvc.CreateDirectChat(c.Request.Context(), userID, contactID)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusCreated, chat)
 		})
 
 		// Messages
