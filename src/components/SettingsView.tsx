@@ -12,6 +12,10 @@ import { generateDeviceFingerprint } from '../crypto/device';
 import { PasswordChange } from './PasswordChange';
 import { TwoFactorSetup } from './TwoFactorSetup';
 import PasscodeSetup from './PasscodeSetup';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { App } from '@capacitor/app';
+import { Device } from '@capacitor/device';
+import { Browser } from '@capacitor/browser';
 import { ContactSyncService, SyncedContact } from '../services/ContactSyncService';
 import ContactSyncModal from './ContactSyncModal';
 
@@ -321,25 +325,64 @@ export default function SettingsView({
 
   useEffect(() => {
     const checkPush = async () => {
-      const permission = await checkNotificationPermission();
-      setPushEnabled(permission === 'granted');
-      setPushSupported(permission !== 'unsupported');
+      try {
+        const perm = await PushNotifications.checkPermissions();
+        setPushEnabled(perm.receive === 'granted');
+        setPushSupported(true);
+        
+        if (perm.receive === 'granted') {
+          PushNotifications.addListener('registration', (token) => {
+             apiRequest('/auth/push-subscription', {
+               method: 'POST',
+               body: JSON.stringify({ token: token.value, platform: 'android' })
+             });
+          });
+          PushNotifications.addListener('registrationError', (err) => {
+             console.error('Push registration error:', err);
+          });
+        }
+      } catch (e) {
+        // Fallback for web
+        const permission = await checkNotificationPermission();
+        setPushEnabled(permission === 'granted');
+        setPushSupported(permission !== 'unsupported');
+      }
     };
     checkPush();
+
+    return () => {
+      PushNotifications.removeAllListeners();
+    };
   }, []);
 
   const handleEnablePush = async () => {
-    const granted = await requestNotificationPermission();
-    if (granted) {
-      const sub = await subscribeUserToPush();
-      if (sub) {
+    try {
+      let perm = await PushNotifications.checkPermissions();
+      if (perm.receive !== 'granted') {
+        perm = await PushNotifications.requestPermissions();
+      }
+      
+      if (perm.receive === 'granted') {
+        await PushNotifications.register();
         setPushEnabled(true);
         toast.success('Уведомления включены!');
       } else {
-        toast.error('Ошибка при подписке');
+        toast.error('Доступ к уведомлениям запрещен');
       }
-    } else {
-      toast.error('Доступ к уведомлениям запрещен');
+    } catch (e) {
+      // Fallback for web
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        const sub = await subscribeUserToPush();
+        if (sub) {
+          setPushEnabled(true);
+          toast.success('Уведомления включены!');
+        } else {
+          toast.error('Ошибка при подписке');
+        }
+      } else {
+        toast.error('Доступ к уведомлениям запрещен');
+      }
     }
   };
 
@@ -360,7 +403,7 @@ export default function SettingsView({
   };
 
   const renderHeader = (title: string, showBackToMain = true) => (
-    <div className="flex items-center gap-4 p-6 border-b border-white/5 bg-white/2 sticky top-0 backdrop-blur-xl z-20">
+    <div className="flex items-center gap-4 px-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-6 border-b border-white/5 bg-white/2 sticky top-0 backdrop-blur-xl z-20">
       <button 
         onClick={showBackToMain ? () => {
           if (activeTab === 'password' || activeTab === '2fa' || activeTab === 'devices' || activeTab === 'passcode') setActiveTab('security');

@@ -1,11 +1,5 @@
-/**
- * DEVICE BINDING MODULE
- * 
- * Generates a unique device fingerprint based on browser/hardware characteristics.
- * Registers the device with the backend and tracks trusted devices.
- */
-
 import { hashSHA256, arrayToHex } from './webcrypto';
+import { Device } from '@capacitor/device';
 
 export interface DeviceInfo {
   fingerprint: string;
@@ -13,20 +7,28 @@ export interface DeviceInfo {
   platform: string;
 }
 
-/**
- * Generate a device fingerprint from browser characteristics.
- * Uses canvas fingerprinting, WebGL info, and navigator properties.
- */
 export async function generateDeviceFingerprint(): Promise<DeviceInfo> {
   const components: string[] = [];
+  let platform = 'web';
+  let deviceName = 'Browser';
+  let deviceId = '';
 
-  // Navigator properties
-  components.push(navigator.userAgent);
-  components.push(navigator.language);
-  components.push(String(navigator.hardwareConcurrency || 0));
-  components.push(String(screen.width) + 'x' + String(screen.height));
-  components.push(String(screen.colorDepth));
-  components.push(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  try {
+    const info = await Device.getInfo();
+    const id = await Device.getId();
+    platform = info.platform;
+    deviceName = `${info.manufacturer} ${info.model}`;
+    deviceId = id.identifier;
+    components.push(deviceId);
+    components.push(platform);
+    components.push(deviceName);
+  } catch (e) {
+    // Fallback for non-capacitor environments
+    components.push(navigator.userAgent);
+    components.push(navigator.language);
+    platform = detectPlatform();
+    deviceName = generateDeviceName();
+  }
 
   // Canvas fingerprint
   try {
@@ -49,37 +51,15 @@ export async function generateDeviceFingerprint(): Promise<DeviceInfo> {
     components.push('canvas-unavailable');
   }
 
-  // WebGL info
-  try {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    if (gl && gl instanceof WebGLRenderingContext) {
-      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-      if (debugInfo) {
-        components.push(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '');
-        components.push(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '');
-      }
-    }
-  } catch {
-    components.push('webgl-unavailable');
-  }
-
   // Hash everything
   const combined = components.join('|');
   const data = new TextEncoder().encode(combined);
   const hash = await hashSHA256(data);
   const fingerprint = arrayToHex(hash);
 
-  // Detect platform
-  const platform = detectPlatform();
-  const deviceName = generateDeviceName();
-
   return { fingerprint, deviceName, platform };
 }
 
-/**
- * Register device with the backend.
- */
 export async function registerDevice(
   apiRequest: (url: string, options?: RequestInit) => Promise<Response>,
   deviceInfo: DeviceInfo
@@ -97,9 +77,6 @@ export async function registerDevice(
   return await response.json();
 }
 
-/**
- * Validate current device with the backend.
- */
 export async function validateDevice(
   apiRequest: (url: string, options?: RequestInit) => Promise<Response>,
   fingerprint: string

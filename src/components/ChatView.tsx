@@ -432,7 +432,7 @@ export default function ChatView({
       </div>
 
       {/* Input */}
-      <div className="glass px-3 sm:px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+      <div className="glass px-3 sm:px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
         <div className="max-w-3xl mx-auto">
           {previewUrl && (
             <div className="mb-3 relative p-2 glass rounded-2xl border border-purple-500/30 flex items-center gap-4 animate-message">
@@ -447,7 +447,7 @@ export default function ChatView({
               {!isRecording ? (
                 <>
                   <button type="button" onClick={() => fileInputRef.current?.click()} className="p-3 hover:bg-white/10 rounded-full text-purple-300 transition-colors"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.51a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg></button>
-                  <textarea rows={1} value={inputMessage} onChange={(e) => { setInputMessage(e.target.value); setIsTyping(e.target.value.length > 0); e.target.style.height = 'inherit'; e.target.style.height = `${e.target.scrollHeight}px`; }} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); } }} placeholder="Сообщение..." className="flex-1 bg-transparent border-none text-white placeholder-white/20 py-3 px-2 resize-none max-h-32 focus:ring-0 text-[15px]" />
+                  <textarea rows={1} value={inputMessage} onChange={(e) => { setInputMessage(e.target.value); setIsTyping(e.target.value.length > 0); e.target.style.height = 'inherit'; e.target.style.height = `${e.target.scrollHeight}px`; }} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); } }} placeholder="Сообщение..." className="flex-1 w-full min-w-0 bg-transparent border-none text-white placeholder-white/20 py-3 px-3 resize-none max-h-32 focus:ring-0 text-[16px]" />
                   <div className="relative">
                     <EmojiStickerPicker
                       isOpen={showPicker}
