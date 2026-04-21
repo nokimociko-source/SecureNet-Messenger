@@ -1,7 +1,7 @@
 mod desktop;
 
 use tauri::Manager;
-use crate::desktop::{setup_tray, send_notification, decrypt_local_store};
+use crate::desktop::{setup_tray, send_notification, decrypt_local_store, secure_save_key, secure_get_key};
 
 fn main() {
     tauri::Builder::default()
@@ -27,7 +27,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             send_notification,
             decrypt_local_store,
-            secure_save_key
+            secure_save_key,
+            secure_get_key
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
