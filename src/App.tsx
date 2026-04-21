@@ -92,6 +92,7 @@ export default function App() {
       return;
     }
 
+    const API_BASE_URL = localStorage.getItem('custom_api_url') || (isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api');
 
     // Sync token with Service Worker for media auth
     if (navigator.serviceWorker.controller) {
@@ -107,6 +108,7 @@ export default function App() {
       wsRef.current = null;
     }
 
+    try {
       // ✅ SECURITY UPGRADE: Request a One-Time Ticket first, with fallback
       let ticket = '';
       try {
@@ -167,7 +169,7 @@ export default function App() {
                 status: msg.status || 'sent',
                 mediaId: msg.mediaId || msg.media_id,
                 fileUrl: (msg.mediaId || msg.media_id)
-                  ? `${localStorage.getItem('custom_api_url') || (isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api')}/media/${msg.mediaId || msg.media_id}`
+                  ? `${API_BASE_URL}/media/${msg.mediaId || msg.media_id}`
                   : undefined,
                 encrypted: true
               }];
