@@ -115,6 +115,32 @@ func (h *Hub) ValidateTicket(ticket string) (uuid.UUID, string, bool) {
 	return info.UserID, info.Username, true
 }
 
+func (h *Hub) broadcastPresence() {
+	h.mu.RLock()
+	onlineIDs := make([]uuid.UUID, 0, len(h.UserMap))
+	for id := range h.UserMap {
+		onlineIDs = append(onlineIDs, id)
+	}
+	h.mu.RUnlock()
+
+	msg := &models.WSMessage{
+		Type: "presence",
+		Content: map[string]interface{}{
+			"onlineUsers": onlineIDs,
+		},
+	}
+	data, _ := json.Marshal(msg)
+
+	h.mu.RLock()
+	for client := range h.Clients {
+		select {
+		case client.Send <- data:
+		default:
+		}
+	}
+	h.mu.RUnlock()
+}
+
 func (h *Hub) Run() {
 	for {
 		select {
@@ -124,6 +150,7 @@ func (h *Hub) Run() {
 			h.UserMap[client.UserID] = client
 			h.mu.Unlock()
 			log.Printf("User %s connected", client.Username)
+			h.broadcastPresence()
 
 		case client := <-h.Unregister:
 			h.mu.Lock()
@@ -134,7 +161,7 @@ func (h *Hub) Run() {
 			}
 			h.mu.Unlock()
 			log.Printf("User %s disconnected", client.Username)
-			// Presence broadcasting should be handled selectively in production
+			h.broadcastPresence()
 		}
 	}
 }

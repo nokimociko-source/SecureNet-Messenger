@@ -21,17 +21,22 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/ws-ticket': {
-        target: 'http://127.0.0.1:8080',
+        target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false,
       },
       '/ws': {
-        target: 'ws://127.0.0.1:8080',
+        target: 'ws://localhost:8080',
         ws: true,
         changeOrigin: true,
       },
       '/api': {
-        target: 'http://127.0.0.1:8080',
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/uploads': {
+        target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false,
       }

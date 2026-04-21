@@ -43,7 +43,6 @@ export default function App() {
   const wsRef = useRef<WebSocket | null>(null);
   const [contacts, setContacts] = useState<User[]>([]);
   
-  const [wsConnected, setWsConnected] = useState(false);
   const [auditLog, setAuditLog] = useState<storage.AuditLogEntry[]>([]);
   const [masterKey, setMasterKey] = useState<CryptoKey | null>(null);
   
@@ -73,6 +72,7 @@ export default function App() {
     callType: 'audio',
     targetUser: null
   });
+  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
 
   // Helper Functions
   const urlBase64ToUint8Array = (base64String: string) => {
@@ -122,12 +122,15 @@ export default function App() {
     
     socket.onopen = () => { 
       console.log('⚡️ Catlover Connected'); 
-      setWsConnected(true); 
     };
 
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        if (data.type === 'presence') {
+          setOnlineUsers(data.content?.onlineUsers || []);
+          return;
+        }
         if (data.type === 'message') {
           const msg = data.content;
           setMessages(prev => {
@@ -178,7 +181,6 @@ export default function App() {
     };
     
     socket.onclose = (event) => {
-      setWsConnected(false);
       // Only retry if it wasn't a clean close from our side
       if (event.code !== 1000 && event.code !== 1001) {
         console.log('🔌 Connection lost, retrying...');
@@ -259,20 +261,38 @@ export default function App() {
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data)) {
-          setSessions(data.map((chat: any) => ({
-            id: chat.id,
-            contactId: chat.contact_id || chat.id,
-            contactName: chat.name || chat.contact_name || 'Chat',
-            unreadCount: chat.unreadCount || 0,
-            verified: true,
-            pinned: false,
-            muted: false,
-            isGroup: chat.type === 'group',
-            isBlocked: chat.is_blocked || false,
-            lastMessage: chat.last_message,
-            lastMessageAt: chat.lastMessageAt,
-            participants: chat.participants || []
-          })));
+          setSessions(data.map((chat: any) => {
+            const isGroup = chat.type === 'group';
+            const isSaved = chat.type === 'saved';
+            let contactId = chat.id;
+            let contactName = chat.name || 'Chat';
+
+            if (chat.type === 'direct' && Array.isArray(chat.participants)) {
+              const otherUser = chat.participants.find((p: any) => p.userId !== currentUser?.id);
+              if (otherUser) {
+                contactId = otherUser.userId;
+                contactName = otherUser.username;
+              }
+            } else if (isSaved) {
+              contactId = currentUser?.id || chat.id;
+              contactName = 'Избранное';
+            }
+
+            return {
+              id: chat.id,
+              contactId: contactId,
+              contactName: contactName,
+              unreadCount: chat.unreadCount || 0,
+              verified: true,
+              pinned: isSaved,
+              muted: false,
+              isGroup: isGroup,
+              isBlocked: chat.is_blocked || false,
+              lastMessage: chat.last_message,
+              lastMessageAt: chat.lastMessageAt,
+              participants: chat.participants || []
+            };
+          }));
         }
       }
     } catch (err) { console.error('Failed to fetch sessions', err); }
@@ -847,7 +867,10 @@ export default function App() {
                   <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold ${activeSession?.id === session.id ? 'bg-white/20' : 'bg-gradient-to-tr from-indigo-500 to-purple-500 shadow-lg'}`}>
                     {session.contactId === currentUser?.id ? '🔖' : (session.contactName?.[0] || '?')}
                   </div>
-                  {wsConnected && <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-4 border-[#0f0a1e] rounded-full"></div>}
+                  {/* Online Indicator: Only for private chats and if user is in onlineUsers */}
+                  {!session.isGroup && (session.contactId === currentUser?.id || onlineUsers.includes(session.contactId)) && (
+                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-4 border-[#0f0a1e] rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                  )}
                </div>
                <div className="flex-1 min-w-0">
                  <div className="flex items-center justify-between mb-1">

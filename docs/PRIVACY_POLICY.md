@@ -1,25 +1,42 @@
-# 🐾 Privacy Policy: Catlover Messenger
+# Privacy Policy for Catlover Messenger
+
 **Effective Date:** April 21, 2026  
-**Provider:** DemonestoriCat Systems ("DemonestoriCat", "We", "Us")
+**Last Updated:** April 21, 2026  
+**Company:** DemonestoriCat Systems Inc. ("DemonestoriCat", "we", "us", or "our")
 
-At Catlover, your privacy is not a feature; it is the fundamental mathematical reality of our service. This Privacy Policy outlines how we handle data and, more importantly, what we **cannot** access.
+At Catlover Messenger, your privacy is our core mission. We believe that privacy is a fundamental human right. This Privacy Policy describes how we handle information in connection with your use of Catlover.
 
-## 1. Zero-Knowledge Architecture
-Catlover is designed as a Zero-Knowledge system. All communications, including text messages, voice calls, video streams, and file transfers, are end-to-end encrypted (E2EE) using the **NIST P-521** elliptic curve and the **Double Ratchet** protocol.
-*   **No Access to Content:** DemonestoriCat does not hold the private keys required to decrypt your messages. We cannot read your communications under any circumstances.
-*   **No Access to Passwords:** Your master key is derived locally on your device via PBKDF2 (SHA-512). We never receive or store your password or master key.
+## 1. Zero-Knowledge Commitment
+Catlover is built on a "Zero-Knowledge" architecture. This means:
+- We **cannot** read your messages.
+- We **cannot** listen to your calls.
+- We **do not** have access to your cryptographic keys.
+- We **do not** sell your data to third parties.
 
-## 2. Data We Collect (Minimum Required)
-To provide the service, we only store the minimum technical data required for message delivery:
-*   **Account Information:** Your public cryptographic keys, an obscured identifier (e.g., hashed phone number), and optional profile metadata.
+## 2. Information We Collect (Minimalist Approach)
+To provide the service, we only collect the bare minimum:
+- **Phone Number:** Used as your unique identifier and for account verification.
+- **Account Metadata:** Username and avatar (if provided).
+- **Public Keys:** Necessary for establishing end-to-end encrypted sessions between devices.
+- **Technical Logs:** Temporary diagnostic logs (IP address, device type) which are automatically purged after 14 days and are never linked to your message content.
 
-## 3. Data We DO NOT Collect
-*   **Message Content:** Never.
-*   **IP Addresses:** We do not log or store your IP address in association with your identity.
-*   **Social Graph:** We do not analyze who you talk to or how often.
+## 3. End-to-End Encryption (E2EE)
+All communications on Catlover (text, voice, video, files) are protected by the **Signal Protocol** (Double Ratchet + X3DH). Encryption happens on your device and can only be decrypted by the intended recipient.
 
-## 4. Law Enforcement and Data Requests
-Because we do not store your private keys or unencrypted data, DemonestoriCat is **technically incapable** of complying with requests to provide message content or decrypted information.
+## 4. Data Storage and Location
+Your data is stored on secure, encrypted servers. However, because we use E2EE, the data stored on our servers is ciphertext that we cannot decrypt.
+
+## 5. Third-Party Services
+We do not share your information with third-party advertising networks. We may use infrastructure providers (such as Google Cloud or AWS) to host our encrypted data, but they have no access to the plaintext content.
+
+## 6. Your Rights
+You have the right to:
+- Access and update your profile information.
+- Delete your account and all associated data at any time.
+- Request a copy of the minimal metadata we hold about you.
+
+## 7. Contact Us
+If you have any questions about this Privacy Policy, please contact our Data Protection Officer at privacy@demonestoricat.io.
 
 ---
-*Catlover: Mathematics is the only law we obey.*
+*© 2026 DemonestoriCat Systems Inc.*

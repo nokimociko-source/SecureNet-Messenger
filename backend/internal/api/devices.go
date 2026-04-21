@@ -13,6 +13,10 @@ import (
 func RegisterDeviceRoutes(group *gin.RouterGroup, deviceSvc *services.DeviceService) {
 	// Register device (called on login/app start)
 	group.POST("/devices", func(c *gin.Context) {
+		if deviceSvc == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "demo", "message": "Database unavailable, skipping device registration"})
+			return
+		}
 		userID := c.GetString("userId")
 		uid, err := uuid.Parse(userID)
 		if err != nil {

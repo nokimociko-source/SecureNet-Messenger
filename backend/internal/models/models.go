@@ -31,6 +31,7 @@ type User struct {
 	TotpSecret     string `json:"-" db:"totp_secret"`
 	CreatedAt          time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt          time.Time `json:"updatedAt" db:"updated_at"`
+	TelegramID         int64     `json:"telegramId,omitempty" db:"telegram_id"`
 }
 
 type Message struct {
@@ -119,9 +120,9 @@ type Device struct {
 // Media represents uploaded file/media metadata.
 type Media struct {
 	ID          uuid.UUID `json:"id" db:"id"`
-	UploaderID  uuid.UUID `json:"uploaderId" db:"uploader_id"`
-	ChatID      uuid.UUID `json:"chatId" db:"chat_id"`
-	FileName    string    `json:"fileName" db:"file_name"`
+	UploaderID  uuid.UUID  `json:"uploaderId" db:"uploader_id"`
+	ChatID      *uuid.UUID `json:"chatId,omitempty" db:"chat_id"`
+	FileName    string     `json:"fileName" db:"file_name"`
 	FileSize    int64     `json:"fileSize" db:"file_size"`
 	MimeType    string    `json:"mimeType" db:"mime_type"`
 	StoragePath string    `json:"storagePath" db:"storage_path"`
@@ -155,4 +156,13 @@ type KeyBundle struct {
 	IdentityKey string   `json:"identityKey"`
 	SignedKey   *PreKey  `json:"signedKey"`
 	OneTimeKey  *PreKey  `json:"oneTimeKey"`
+}
+
+// PushSubscription represents a Web Push notification subscription.
+type PushSubscription struct {
+	Endpoint string `json:"endpoint" db:"endpoint"`
+	Keys     struct {
+		P256dh string `json:"p256dh" db:"p256dh"`
+		Auth   string `json:"auth" db:"auth"`
+	} `json:"keys"`
 }

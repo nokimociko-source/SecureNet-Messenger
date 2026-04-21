@@ -1,13 +1,12 @@
 package api
 
 import (
-	"crypto/hmac"
-	"crypto/rand"
-	"crypto/sha1"
+	"context"
 	"database/sql"
-	"encoding/binary"
+	"encoding/json"
 	"fmt"
-	"math/big"
+	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -15,8 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/lib/pq"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/pquerna/otp/totp"
 
 	"securenet-backend/internal/auth"
 	"securenet-backend/internal/config"
@@ -41,8 +39,62 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 	chatSvc := services.NewChatService(chatRepo, auditService)
 	deviceSvc := services.NewDeviceService(deviceRepo, auditService)
 	mediaSvc := services.NewMediaService(mediaRepo, auditService)
-	socialSvc := services.NewSocialService(db) 
+	socialSvc := services.NewSocialService(db)
 	cryptoSvc := services.NewCryptoService(db)
+
+	testToken := "8373955670:AAHa3LGqmu_FesuOUMZCUpvqhxGwWYzRADk"
+	tgImporter := services.NewTelegramImporter(testToken, "./uploads", mediaSvc)
+
+	// --- Telegram Bot Webhook ---
+	r.POST("/api/telegram/webhook", func(c *gin.Context) {
+		var update services.TelegramUpdate
+		if err := c.ShouldBindJSON(&update); err != nil {
+			return
+		}
+
+		if update.Message == nil {
+			return
+		}
+
+		tgID := update.Message.From.ID
+		botToken := testToken
+
+		// Handle Start command for linking: /start <SecureNet-UUID>
+		if strings.HasPrefix(update.Message.Text, "/start") {
+			parts := strings.Split(update.Message.Text, " ")
+			if len(parts) > 1 {
+				secureNetID := parts[1]
+				err := userRepo.LinkTelegramID(c.Request.Context(), secureNetID, tgID)
+				if err == nil {
+					sendTelegramMessage(botToken, tgID, "✅ Аккаунт успешно привязан! Теперь просто пришли мне любой стикер.")
+				} else {
+					sendTelegramMessage(botToken, tgID, "❌ Ошибка при привязке аккаунта.")
+				}
+			} else {
+				sendTelegramMessage(botToken, tgID, "Привет! Чтобы привязать аккаунт, используй команду из настроек приложения.")
+			}
+			c.Status(http.StatusOK)
+			return
+		}
+
+		// Handle Sticker import
+		if update.Message.Sticker != nil {
+			user, err := userRepo.GetByTelegramID(c.Request.Context(), tgID)
+			if err != nil || user == nil {
+				sendTelegramMessage(botToken, tgID, "⚠️ Твой Telegram не привязан к SecureNet. Зайди в настройки приложения, чтобы получить код привязки.")
+				c.Status(http.StatusOK)
+				return
+			}
+
+			_, err = tgImporter.ImportSticker(c.Request.Context(), user.ID, update.Message.Sticker.FileID)
+			if err != nil {
+				sendTelegramMessage(botToken, tgID, "❌ Не удалось импортировать стикер: "+err.Error())
+			} else {
+				sendTelegramMessage(botToken, tgID, "✅ Стикер добавлен в твою коллекцию!")
+			}
+		}
+		c.Status(http.StatusOK)
+	})
 
 	// --- Auth & Security Group (Public + Semi-Protected) ---
 	authGroup := r.Group("/api/auth")
@@ -64,7 +116,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 				return
 			}
-			c.JSON(http.StatusCreated, gin.H{"token": token, "user": user})
+			c.JSON(http.StatusCreated, gin.H{"user": user, "token": token})
 		})
 
 		authGroup.POST("/login", func(c *gin.Context) {
@@ -78,27 +130,25 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			}
 			user, token, err := authSvc.Login(c.Request.Context(), req.PhoneNumber, req.Password)
 			if err != nil {
-				ipAddress, userAgent := services.GetClientInfo(c)
-				auditService.LogAction(uuid.Nil, models.AuditActionLoginFailed, "auth", nil, map[string]interface{}{"phone": req.PhoneNumber, "reason": err.Error()}, ipAddress, userAgent)
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 				return
 			}
-			userRepo.UpdateStatus(c.Request.Context(), user.ID.String(), "online")
-			ipAddress, userAgent := services.GetClientInfo(c)
-			auditService.LogAction(user.ID, models.AuditActionLogin, "auth", nil, map[string]interface{}{"username": user.Username, "phone": user.PhoneNumber}, ipAddress, userAgent)
+
+			// Check if 2FA is enabled
 			if user.TotpEnabled {
-				preToken, _ := auth.GenerateToken(user.ID, user.Username, "pre_auth", cfg.JWTSecret)
-				c.JSON(http.StatusAccepted, gin.H{
-					"status": "2fa_required",
-					"userId": user.ID,
-					"token":  preToken,
+				// Return a temporary token and 2FA requirement
+				c.JSON(http.StatusOK, gin.H{
+					"status":    "pending_2fa",
+					"tempToken": token,
+					"userId":    user.ID,
 				})
 				return
 			}
-			c.JSON(http.StatusOK, gin.H{"token": token, "user": user})
+
+			c.JSON(http.StatusOK, gin.H{"user": user, "token": token})
 		})
 
-		authGroup.POST("/2fa/verify", func(c *gin.Context) {
+		authGroup.POST("/login/2fa", func(c *gin.Context) {
 			var req struct {
 				Token string `json:"token" binding:"required"`
 				Code  string `json:"code" binding:"required"`
@@ -107,46 +157,119 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
+
+			// Validate the temp token
 			claims, err := auth.ValidateToken(req.Token, cfg.JWTSecret)
 			if err != nil {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid session"})
 				return
 			}
-			var secret string
-			err = db.QueryRow("SELECT totp_secret FROM users WHERE id = $1 AND totp_enabled = true", claims.UserID.String()).Scan(&secret)
-			if err != nil || secret == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "2FA not enabled"})
+
+			// Get user secret from DB
+			secret, enabled, err := userRepo.GetTOTPSecret(c.Request.Context(), claims.UserID.String())
+			if err != nil || !enabled {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "2FA not enabled for this user"})
 				return
 			}
-			if !verifyTOTP(secret, req.Code) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid verification code"})
+
+			if !totp.Validate(req.Code, secret) {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid 2FA code"})
 				return
 			}
-			token, err := auth.GenerateToken(claims.UserID, claims.Username, claims.Role, cfg.JWTSecret)
+
+			// 2FA Success: Return full user data (fetch again to be sure)
+			user, _ := userRepo.GetByID(c.Request.Context(), claims.UserID.String())
+			c.JSON(http.StatusOK, gin.H{"user": user, "token": req.Token})
+		})
+
+		// 2FA Setup
+		authGroup.POST("/2fa/setup", authMiddleware(cfg.JWTSecret), func(c *gin.Context) {
+			userID := c.GetString("userId")
+			username := c.GetString("username")
+
+			key, err := totp.Generate(totp.GenerateOpts{
+				Issuer:      "Catlover Messenger",
+				AccountName: username,
+			})
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate TOTP secret"})
 				return
 			}
-			c.JSON(http.StatusOK, gin.H{"token": token, "user": gin.H{"id": claims.UserID.String(), "username": claims.Username, "role": claims.Role}})
+
+			// Save secret temporarily or permanently as 'disabled'
+			userRepo.UpdateTOTP(c.Request.Context(), userID, key.Secret(), false)
+
+			c.JSON(http.StatusOK, gin.H{
+				"secret": key.Secret(),
+				"qrCode": key.URL(),
+			})
+		})
+
+		authGroup.POST("/2fa/enable", authMiddleware(cfg.JWTSecret), func(c *gin.Context) {
+			var req struct {
+				Code string `json:"code" binding:"required"`
+			}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+
+			userID := c.GetString("userId")
+			secret, _, err := userRepo.GetTOTPSecret(c.Request.Context(), userID)
+			if err != nil || secret == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "TOTP setup not initiated"})
+				return
+			}
+
+			if totp.Validate(req.Code, secret) {
+				userRepo.UpdateTOTP(c.Request.Context(), userID, secret, true)
+				c.JSON(http.StatusOK, gin.H{"status": "enabled"})
+			} else {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid code"})
+			}
+		})
+
+		authGroup.POST("/2fa/disable", authMiddleware(cfg.JWTSecret), func(c *gin.Context) {
+			userID := c.GetString("userId")
+			userRepo.UpdateTOTP(c.Request.Context(), userID, "", false)
+			c.JSON(http.StatusOK, gin.H{"status": "disabled"})
+		})
+
+		authGroup.GET("/vapid-key", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"publicKey": cfg.VAPIDPublicKey})
+		})
+
+		authGroup.POST("/push-subscription", authMiddleware(cfg.JWTSecret), func(c *gin.Context) {
+			var sub models.PushSubscription
+			if err := c.ShouldBindJSON(&sub); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			userID := c.GetString("userId")
+			if err := userRepo.SavePushSubscription(c.Request.Context(), userID, sub); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"status": "saved"})
 		})
 	}
 
-	// Public Update Feed (Self-hosted)
+	// Updates (Public)
 	r.GET("/api/updates/latest", func(c *gin.Context) {
-		platform := strings.ToLower(strings.TrimSpace(c.Query("platform")))
-		if platform != "android" && platform != "windows" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "platform must be android or windows"})
+		platform := c.Query("platform") // android, windows
+		if platform == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "platform required"})
 			return
 		}
 
-		type updateConfig struct {
+		type updateInfo struct {
 			version string
 			url     string
 			sha256  string
 			notes   string
 		}
 
-		cfgMap := map[string]updateConfig{
+		cfgMap := map[string]updateInfo{
 			"android": {
 				version: strings.TrimSpace(os.Getenv("ANDROID_LATEST_VERSION")),
 				url:     strings.TrimSpace(os.Getenv("ANDROID_APK_URL")),
@@ -177,10 +300,93 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 		})
 	})
 
-	// Protected routes
 	authorized := r.Group("/api")
-	authorized.Use(authMiddleware(cfg.JWTSecret, db))
+	authorized.Use(authMiddleware(cfg.JWTSecret))
 	{
+		// Audit (Admin only)
+		authorized.GET("/audit/stats", func(c *gin.Context) {
+			role := c.GetString("role")
+			if role != "admin" && role != "moderator" {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+				return
+			}
+			stats, err := auditService.GetAuditLogStats(nil, nil, nil)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, stats)
+		})
+
+		authorized.GET("/audit/logs", func(c *gin.Context) {
+			role := c.GetString("role")
+			if role != "admin" && role != "moderator" {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+				return
+			}
+			limit, _ := parseInt(c.DefaultQuery("limit", "50"))
+			offset, _ := parseInt(c.DefaultQuery("offset", "0"))
+			logs, err := auditService.GetAuditLog(models.AuditFilter{Limit: limit, Offset: offset})
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, logs)
+		})
+
+		// Admin - Reports
+		authorized.GET("/admin/reports", func(c *gin.Context) {
+			role := c.GetString("role")
+			if role != "admin" && role != "moderator" {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+				return
+			}
+			rows, err := db.Query(`
+				SELECT r.id, r.reporter_id, u1.username as reporter_name, r.target_id, u2.username as target_name, r.reason, r.status, r.created_at 
+				FROM reports r
+				LEFT JOIN users u1 ON r.reporter_id = u1.id
+				LEFT JOIN users u2 ON r.target_id = u2.id
+				ORDER BY r.created_at DESC`)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			defer rows.Close()
+
+			var results []gin.H
+			for rows.Next() {
+				var id, reporterID, targetID uuid.UUID
+				var reporterName, targetName, reason, status string
+				var createdAt time.Time
+				rows.Scan(&id, &reporterID, &reporterName, &targetID, &targetName, &reason, &status, &createdAt)
+				results = append(results, gin.H{
+					"id":           id,
+					"reporterId":   reporterID,
+					"reporterName": reporterName,
+					"targetId":     targetID,
+					"targetName":   targetName,
+					"reason":       reason,
+					"status":       status,
+					"createdAt":    createdAt,
+				})
+			}
+			c.JSON(http.StatusOK, results)
+		})
+
+		authorized.GET("/admin/posts", func(c *gin.Context) {
+			role := c.GetString("role")
+			if role != "admin" && role != "moderator" {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+				return
+			}
+			posts, err := socialSvc.GetFeed(uuid.Nil, 100, 0) // Passing uuid.Nil to get global feed for admin
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, posts)
+		})
+
 		// Users
 		authorized.GET("/users/search", func(c *gin.Context) {
 			query := c.Query("q")
@@ -206,42 +412,180 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			}
 			defer rows.Close()
 
-			var contacts []gin.H
+			var results []gin.H
 			for rows.Next() {
 				var id, contactID uuid.UUID
-				var phone, username, pubKey string
+				var phone, user, pub string
 				var fav, blocked bool
-				rows.Scan(&id, &contactID, &phone, &username, &pubKey, &fav, &blocked)
-				contacts = append(contacts, gin.H{
-					"id":          id,
-					"contactId":   contactID,
-					"phoneNumber": phone,
-					"username":    username,
-					"publicKey":   pubKey,
-					"isFavorite":  fav,
-					"isBlocked":   blocked,
+				rows.Scan(&id, &contactID, &phone, &user, &pub, &fav, &blocked)
+				results = append(results, gin.H{
+					"id":         id,
+					"contactId":  contactID,
+					"phone":      phone,
+					"username":   user,
+					"publicKey":  pub,
+					"isFavorite": fav,
+					"isBlocked":  blocked,
 				})
 			}
-			c.JSON(http.StatusOK, contacts)
+			c.JSON(http.StatusOK, results)
 		})
 
 		authorized.POST("/contacts", func(c *gin.Context) {
-			userID := c.GetString("userId")
 			var req struct {
 				ContactID string `json:"contactId" binding:"required"`
-				Name      string `json:"name"`
 			}
 			if err := c.ShouldBindJSON(&req); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			_, err := db.Exec("INSERT INTO contacts (user_id, contact_id, name) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", userID, req.ContactID, req.Name)
+			userID := c.GetString("userId")
+			_, err := db.Exec("INSERT INTO contacts (user_id, contact_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", userID, req.ContactID)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add contact"})
 				return
 			}
 			c.JSON(http.StatusCreated, gin.H{"message": "Contact added"})
 		})
+
+		authorized.POST("/contacts/sync", func(c *gin.Context) {
+			var req struct {
+				PhoneNumbers []string `json:"phoneNumbers" binding:"required"`
+			}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			userID, _ := uuid.Parse(c.GetString("userId"))
+			matched, err := socialSvc.SyncContacts(userID, req.PhoneNumbers)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, matched)
+		})
+
+		authorized.GET("/stickers/my", func(c *gin.Context) {
+			userID := c.GetString("userId")
+			stickers, err := mediaSvc.GetUserStickers(c.Request.Context(), userID)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, stickers)
+		})
+
+		authorized.POST("/stickers/import-set", func(c *gin.Context) {
+			var req struct {
+				PackName string `json:"packName" binding:"required"`
+			}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+
+			userID, _ := uuid.Parse(c.GetString("userId"))
+			
+			// 1. Get sticker set info from Telegram
+			url := fmt.Sprintf("https://api.telegram.org/bot%s/getStickerSet?name=%s", testToken, req.PackName)
+			log.Printf("📥 Importing sticker pack: %s (URL: %s)", req.PackName, url)
+			
+			// Increased timeout and force IPv4 for better reliability
+			dialer := &net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}
+			transport := &http.Transport{
+				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					return dialer.DialContext(ctx, "tcp4", addr) // Force IPv4
+				},
+			}
+			client := &http.Client{
+				Transport: transport,
+				Timeout:   60 * time.Second,
+			}
+			resp, err := client.Get(url)
+			if err != nil {
+				log.Printf("❌ Telegram API request failed after 60s: %v", err)
+				c.JSON(http.StatusGatewayTimeout, gin.H{"error": "Telegram API unreachable. Check your network or VPN."})
+				return
+			}
+			defer resp.Body.Close()
+
+			log.Printf("📡 Telegram response status: %s", resp.Status)
+
+			var result struct {
+				OK     bool `json:"ok"`
+				Result struct {
+					Stickers []struct {
+						FileID string `json:"file_id"`
+					} `json:"stickers"`
+				} `json:"result"`
+			}
+			json.NewDecoder(resp.Body).Decode(&result)
+
+			if !result.OK {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Sticker pack not found or invalid"})
+				return
+			}
+
+			// 2. Import each sticker (in background)
+			go func() {
+				for _, s := range result.Result.Stickers {
+					tgImporter.ImportSticker(context.Background(), userID, s.FileID)
+				}
+			}()
+
+			c.JSON(http.StatusOK, gin.H{"message": "Импорт запущен!", "count": len(result.Result.Stickers)})
+		})
+
+		// --- Start Telegram Polling in Background ---
+		go func() {
+			log.Println("🤖 Telegram Polling started...")
+			var lastUpdateID int64
+			for {
+				url := fmt.Sprintf("https://api.telegram.org/bot%s/getUpdates?offset=%d&timeout=30", testToken, lastUpdateID+1)
+				resp, err := http.Get(url)
+				if err != nil {
+					time.Sleep(5 * time.Second)
+					continue
+				}
+
+				var result struct {
+					OK     bool                      `json:"ok"`
+					Result []services.TelegramUpdate `json:"result"`
+				}
+				json.NewDecoder(resp.Body).Decode(&result)
+				resp.Body.Close()
+
+				if result.OK {
+					for _, update := range result.Result {
+						lastUpdateID = int64(update.UpdateID)
+						if update.Message == nil {
+							continue
+						}
+
+						tgID := update.Message.From.ID
+
+						// Reuse the logic from the webhook (handling /start and stickers)
+						if strings.HasPrefix(update.Message.Text, "/start") {
+							parts := strings.Split(update.Message.Text, " ")
+							if len(parts) > 1 {
+								userRepo.LinkTelegramID(context.Background(), parts[1], tgID)
+								sendTelegramMessage(testToken, tgID, "✅ Привязано! Шли стикер.")
+							}
+						} else if update.Message.Sticker != nil {
+							user, _ := userRepo.GetByTelegramID(context.Background(), tgID)
+							if user != nil {
+								tgImporter.ImportSticker(context.Background(), user.ID, update.Message.Sticker.FileID)
+								sendTelegramMessage(testToken, tgID, "✅ Стикер улетел в Catlover!")
+							}
+						}
+					}
+				}
+				time.Sleep(500 * time.Millisecond)
+			}
+		}()
 
 		authorized.DELETE("/contacts/:id/block", func(c *gin.Context) {
 			userID := c.GetString("userId")
@@ -373,8 +717,22 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 				cryptoSvc.UploadPreKeys(c.Request.Context(), userID, req)
 				c.JSON(http.StatusOK, gin.H{"message": "Uploaded"})
 			})
+
+			crypto.GET("/bundle/:userId", func(c *gin.Context) {
+				targetID, err := uuid.Parse(c.Param("userId"))
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid userId"})
+					return
+				}
+				bundle, err := cryptoSvc.GetKeyBundle(c.Request.Context(), targetID)
+				if err != nil {
+					c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+					return
+				}
+				c.JSON(http.StatusOK, bundle)
+			})
 		}
-		
+
 		// Features
 		RegisterGroupRoutes(authorized, chatSvc)
 		RegisterDeviceRoutes(authorized, deviceSvc)
@@ -382,9 +740,9 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 	}
 }
 
-// Helpers... (keeping the rest as is but clean)
+// Helpers...
 
-func authMiddleware(secret string, db *sql.DB) gin.HandlerFunc {
+func authMiddleware(secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := ""
 		authHeader := c.GetHeader("Authorization")
@@ -415,25 +773,18 @@ func authMiddleware(secret string, db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-func verifyTOTP(secret, code string) bool {
-	// Dummy TOTP verification for now, replace with real one
-	return code == "123456" || len(code) == 6
-}
-
-func generateTOTPSecret() string {
-	return "SECRET"
-}
-
-func generateBackupCodes() []string {
-	return []string{"1234-5678", "8765-4321"}
-}
-
 func parseInt(s string) (int, error) {
 	var i int
 	_, err := fmt.Sscanf(s, "%d", &i)
 	return i, err
 }
 
-func RegisterGroupRoutes(r *gin.RouterGroup, svc *services.ChatService) { /* ... */ }
-func RegisterDeviceRoutes(r *gin.RouterGroup, svc *services.DeviceService) { /* ... */ }
-func RegisterMediaRoutes(r *gin.RouterGroup, mSvc *services.MediaService, cSvc *services.ChatService) { /* ... */ }
+func sendTelegramMessage(token string, chatID int64, text string) {
+	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
+	payload := map[string]interface{}{
+		"chat_id": chatID,
+		"text":    text,
+	}
+	data, _ := json.Marshal(payload)
+	http.Post(url, "application/json", strings.NewReader(string(data)))
+}

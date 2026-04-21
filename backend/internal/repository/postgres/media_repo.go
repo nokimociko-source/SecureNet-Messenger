@@ -53,7 +53,7 @@ func (r *MediaRepo) GetMedia(ctx context.Context, mediaID string) (*models.Media
 func (r *MediaRepo) GetMediaForChat(ctx context.Context, chatID string, limit int, offset int) ([]*models.Media, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, uploader_id, chat_id, file_name, file_size, mime_type, storage_path, encrypted, checksum, created_at
-		 FROM media WHERE chat_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+		 FROM media WHERE (chat_id = $1::uuid OR (chat_id IS NULL AND uploader_id = $1::uuid)) ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
 		chatID, limit, offset,
 	)
 	if err != nil {
@@ -65,9 +65,14 @@ func (r *MediaRepo) GetMediaForChat(ctx context.Context, chatID string, limit in
 	for rows.Next() {
 		var m models.Media
 		if err := rows.Scan(&m.ID, &m.UploaderID, &m.ChatID, &m.FileName, &m.FileSize, &m.MimeType, &m.StoragePath, &m.Encrypted, &m.Checksum, &m.CreatedAt); err != nil {
-			continue
+			fmt.Printf("❌ Scan error in GetMediaForChat: %v\n", err)
+			return nil, fmt.Errorf("scan media: %w", err)
 		}
 		mediaList = append(mediaList, &m)
+	}
+	if err := rows.Err(); err != nil {
+		fmt.Printf("❌ Rows error in GetMediaForChat: %v\n", err)
+		return nil, fmt.Errorf("rows error: %w", err)
 	}
 	return mediaList, nil
 }

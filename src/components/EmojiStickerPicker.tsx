@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { Smile, Sticker, Search, History } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Smile, Sticker, Search, History, Cloud, Plus } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'react-hot-toast';
 
 interface EmojiStickerPickerProps {
   onEmojiSelect: (emoji: string) => void;
@@ -15,48 +17,105 @@ const EMOJI_CATEGORIES = {
   'Hearts': ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟']
 };
 
+
 const STICKER_PACKS = [
   {
-    name: 'Catlover 3D',
+    name: 'Fluent 3D ✨',
     stickers: [
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f600/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f607/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f60d/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f929/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f618/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f60b/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f61b/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f911/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f917/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f92d/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f92b/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f914/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f610/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f634/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f975/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f976/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f92e/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f92f/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f60e/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f9d0/512.webp'
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Smiling%20face%20with%20heart-eyes/3D/smiling_face_with_heart-eyes_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Heart%20with%20ribbon/3D/heart_with_ribbon_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Partying%20face/3D/partying_face_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Rocket/3D/rocket_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Fire/3D/fire_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Alien/3D/alien_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Robot/3D/robot_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Sparkles/3D/sparkles_3d.png',
     ]
   },
   {
-    name: 'Animals',
+    name: 'Animals 🐾',
     stickers: [
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f431/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f436/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f98a/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f984/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f430/512.webp',
-      'https://fonts.gstatic.com/s/e/notoemoji/latest/1f43c/512.webp'
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Fox/3D/fox_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Cat%20face/3D/cat_face_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Dog%20face/3D/dog_face_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Rabbit%20face/3D/rabbit_face_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Panda/3D/panda_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Bear/3D/bear_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Tiger%20face/3D/tiger_face_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Lion/3D/lion_3d.png',
+    ]
+  },
+  {
+    name: 'Food & Drink 🍕',
+    stickers: [
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Pizza/3D/pizza_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Hamburger/3D/hamburger_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Taco/3D/taco_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Doughnut/3D/doughnut_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Cookie/3D/cookie_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Ice%20cream/3D/ice_cream_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Hot%20beverage/3D/hot_beverage_3d.png',
+      'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Beer%20mug/3D/beer_mug_3d.png',
     ]
   }
 ];
 
 export default function EmojiStickerPicker({ onEmojiSelect, onStickerSelect, isOpen, onClose }: EmojiStickerPickerProps) {
+  const { apiRequest } = useAuth();
   const [activeTab, setActiveTab] = useState<'emoji' | 'sticker'>('emoji');
   const [searchQuery, setSearchQuery] = useState('');
+  const [myStickers, setMyStickers] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'sticker') {
+      fetchMyStickers();
+    }
+  }, [isOpen, activeTab]);
+
+  const fetchMyStickers = async () => {
+    try {
+      const resp = await apiRequest('/stickers/my');
+      if (resp.ok) {
+        const data = await resp.json();
+        // Construct URLs for each sticker (using relative path to work with proxy)
+        const urls = (data || []).map((m: any) => `/uploads/${m.uploaderId}/${m.fileName}`);
+        setMyStickers(urls);
+      }
+    } catch (err) {
+      console.error('Failed to fetch stickers:', err);
+    }
+  };
+
+  const [importPackName, setImportPackName] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImportPack = async () => {
+    if (!importPackName) return;
+    setIsImporting(true);
+    try {
+      // Extract pack name from link if needed (handles trailing slashes and full URLs)
+      let name = importPackName.trim();
+      if (name.endsWith('/')) name = name.slice(0, -1);
+      name = name.split('/').pop() || name;
+      name = name.split('set=').pop() || name;
+
+      const resp = await apiRequest('/stickers/import-set', {
+        method: 'POST',
+        body: JSON.stringify({ packName: name })
+      });
+      if (resp.ok) {
+        toast.success('Импорт запущен! Загляните через пару секунд.');
+        setImportPackName('');
+        setTimeout(fetchMyStickers, 3000);
+      } else {
+        toast.error('Пак не найден');
+      }
+    } catch (err) {
+      toast.error('Ошибка импорта');
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -119,6 +178,51 @@ export default function EmojiStickerPicker({ onEmojiSelect, onStickerSelect, isO
           </div>
         ) : (
           <div className="space-y-8">
+            {/* Import Input */}
+            <div className="space-y-3 bg-white/5 p-4 rounded-2xl border border-white/5">
+              <h4 className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Импорт из Telegram</h4>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Ссылка на пак или название"
+                  value={importPackName}
+                  onChange={(e) => setImportPackName(e.target.value)}
+                  className="flex-1 bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-[10px] text-white focus:ring-1 focus:ring-purple-500 outline-none"
+                />
+                <button
+                  onClick={handleImportPack}
+                  disabled={isImporting}
+                  className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white p-2 rounded-xl transition-all"
+                >
+                  {isImporting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {myStickers.length > 0 && (
+              <div className="space-y-4">
+                <h4 className="text-[9px] font-black text-purple-400 uppercase tracking-[0.2em] px-1 flex items-center gap-2">
+                   <Cloud size={10} />
+                   My Stickers (TG Import)
+                </h4>
+                <div className="grid grid-cols-4 gap-2">
+                  {myStickers.map((url, idx) => (
+                    <button
+                      key={`my-${idx}`}
+                      onClick={() => onStickerSelect(url)}
+                      className="aspect-square relative group active:scale-90 transition-transform"
+                    >
+                      <img 
+                        src={url} 
+                        alt="My Sticker" 
+                        className="w-full h-full object-contain group-hover:drop-shadow-[0_0_10px_rgba(168,85,247,0.5)] transition-all"
+                        loading="lazy"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {STICKER_PACKS.map((pack) => (
               <div key={pack.name} className="space-y-4">
                 <h4 className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] px-1">{pack.name}</h4>

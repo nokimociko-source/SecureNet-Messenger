@@ -1,21 +1,43 @@
-# 🐾 Terms of Service: Catlover Messenger
-**Last Updated:** April 21, 2026  
-**Entity:** DemonestoriCat Systems
+# Terms of Service for Catlover Messenger
 
-By using the Catlover Messenger application and its associated services (the "Service"), you agree to be bound by these Terms of Service.
+**Effective Date:** April 21, 2026  
+**Company:** DemonestoriCat Systems Inc.
 
-## 1. Description of Service
-Catlover provides an end-to-end encrypted communication platform. Due to the cryptographic nature of the Service, DemonestoriCat Systems cannot recover, reset, or provide access to your account if you lose your private keys or master password.
+Welcome to Catlover! By using our messenger app, you agree to these terms. Please read them carefully.
 
-## 2. User Responsibilities
-*   **Key Management:** You are solely responsible for the security of your cryptographic keys and master password. DemonestoriCat does not have access to these and cannot assist in recovery.
-*   **Lawful Use:** You agree not to use the Service for any illegal activities. 
+## 1. Using Catlover
+- You must be at least 13 years old (or the minimum legal age in your country) to use Catlover.
+- You are responsible for all activity that occurs under your account.
+- You must provide a valid phone number to create an account.
 
-## 3. Cryptographic Software Disclaimer
-Catlover is provided "AS IS". Cryptography is an evolving field, and while we use the strongest available standards (NIST P-521), we do not guarantee absolute invulnerability.
+## 2. Privacy & Security
+- Your privacy is governed by our [Privacy Policy](./PRIVACY_POLICY.md).
+- You are responsible for keeping your device and your account secure.
+- Because we use end-to-end encryption, if you lose your device and your backup phrase/keys, we cannot recover your messages for you.
 
-## 4. Limitation of Liability
-To the maximum extent permitted by law, DemonestoriCat Systems shall not be liable for any damages resulting from the use of the Service.
+## 3. Acceptable Use
+You agree not to use Catlover for:
+- Any illegal activities.
+- Spanning or automated harassment.
+- Distributing malware or viruses.
+- Attempting to compromise the security of other users or our infrastructure.
+
+## 4. Rights and Licenses
+- **Your Content:** You own all messages and media you send. You grant us a limited, worldwide, non-exclusive license to transmit and deliver your content as required by the service (in encrypted form).
+- **Our Software:** We grant you a limited, non-exclusive, non-transferable license to use the Catlover application.
+
+## 5. Termination
+- You can delete your account at any time.
+- We reserve the right to terminate or suspend your access if you violate these terms or for any other reason, with or without notice.
+
+## 6. Disclaimers
+CATLOVER IS PROVIDED "AS IS" WITHOUT ANY WARRANTIES. WE DO NOT GUARANTEE THAT THE SERVICE WILL ALWAYS BE AVAILABLE OR ERROR-FREE.
+
+## 7. Limitation of Liability
+DEMONESTORICAT SYSTEMS INC. SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF YOUR USE OF THE SERVICE.
+
+## 8. Governing Law
+These terms are governed by the laws of the jurisdiction where DemonestoriCat Systems Inc. is headquartered, without regard to conflict of law principles.
 
 ---
-*Catlover: Empowering Private Communication.*
+*© 2026 DemonestoriCat Systems Inc.*

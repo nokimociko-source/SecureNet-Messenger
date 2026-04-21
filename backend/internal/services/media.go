@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"securenet-backend/internal/models"
 	"securenet-backend/internal/repository"
@@ -108,7 +109,7 @@ func (s *MediaService) UploadFile(ctx context.Context, file multipart.File, head
 	media := &models.Media{
 		ID:          mediaID,
 		UploaderID:  uploaderID,
-		ChatID:      chatID,
+		ChatID:      &chatID,
 		FileName:    header.Filename,
 		FileSize:    header.Size,
 		MimeType:    mimeType,
@@ -148,6 +149,38 @@ func (s *MediaService) DeleteMedia(ctx context.Context, mediaID string) error {
 	os.Remove(media.StoragePath)
 
 	return s.mediaRepo.DeleteMedia(ctx, mediaID)
+}
+
+// RegisterMedia manually records media metadata in the database.
+func (s *MediaService) RegisterMedia(ctx context.Context, userID uuid.UUID, fileName string, mimeType string, fileSize int64) (string, error) {
+	mediaID := uuid.New()
+	// For stickers/imported media, we use the user's own ID as the chat_id to mark it as private/personal media
+	storagePath := filepath.Join(UploadDir, userID.String(), fileName)
+	
+	media := &models.Media{
+		ID:          mediaID,
+		UploaderID:  userID,
+		ChatID:      nil, // Stickers are personal media, no chat_id
+		FileName:    fileName,
+		FileSize:    fileSize,
+		MimeType:    mimeType,
+		StoragePath: storagePath,
+		Encrypted:   false, // Stickers from TG are usually public anyway
+		Checksum:    "tg_imported",
+		CreatedAt:   time.Now(),
+	}
+
+	if err := s.mediaRepo.StoreMedia(ctx, media); err != nil {
+		return "", err
+	}
+
+	return mediaID.String(), nil
+}
+
+// GetUserStickers returns all stickers (WebP files) owned by the user.
+func (s *MediaService) GetUserStickers(ctx context.Context, userID string) ([]*models.Media, error) {
+	// We query the media table for files where chat_id = userID and mime_type = image/webp
+	return s.mediaRepo.GetMediaForChat(ctx, userID, 100, 0)
 }
 
 func detectMimeType(filename string) string {

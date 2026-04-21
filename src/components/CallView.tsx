@@ -34,14 +34,33 @@ export default function CallView({
   const localStream = useRef<MediaStream | null>(null);
   const timerRef = useRef<any>(null);
 
+  const hasStarted = useRef(false);
+  const isCleaningUp = useRef(false);
+
   useEffect(() => {
     if (isOpen) {
-      if (isIncoming) setCallStatus('ringing');
-      else startCall();
+      if (!hasStarted.current) {
+        hasStarted.current = true;
+        isCleaningUp.current = false;
+        if (isIncoming) setCallStatus('ringing');
+        else startCall();
+      }
     } else {
-      endCall();
+      if (hasStarted.current) {
+        endCall();
+        hasStarted.current = false;
+      }
     }
-    return () => endCall();
+    return () => {
+      // Small delay to allow StrictMode's double mount to preserve the call
+      isCleaningUp.current = true;
+      setTimeout(() => {
+        if (isCleaningUp.current && hasStarted.current) {
+          endCall();
+          hasStarted.current = false;
+        }
+      }, 100);
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -57,10 +76,25 @@ export default function CallView({
 
   const startCall = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: true, 
-        video: callType === 'video' 
-      });
+      let stream: MediaStream;
+      try {
+        // Try requested call type first
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: true, 
+          video: callType === 'video' 
+        });
+      } catch (videoErr) {
+        // Fallback to audio only if video failed
+        if (callType === 'video') {
+          console.warn('Video failed, falling back to audio-only', videoErr);
+          toast('Камера не найдена, переключаюсь на аудио-звонок');
+          setIsVideoEnabled(false);
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        } else {
+          throw videoErr;
+        }
+      }
+
       localStream.current = stream;
       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
@@ -71,11 +105,17 @@ export default function CallView({
         type: 'call',
         subType: 'invite',
         targetId: targetUser.id,
-        callType
+        callType: stream.getVideoTracks().length > 0 ? 'video' : 'audio'
       }));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to get media', err);
-      toast.error('Ошибка доступа к камере/микрофону');
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        toast.error('Доступ заблокирован. Нажмите на 🔒 в строке адреса и разрешите доступ к микрофону.', { duration: 6000 });
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        toast.error('Устройства не найдены. Проверьте подключение микрофона/камеры.');
+      } else {
+        toast.error('Ошибка оборудования: ' + err.message);
+      }
       onClose();
     }
   };
@@ -118,10 +158,22 @@ export default function CallView({
   const handleAccept = async () => {
     setCallStatus('connecting');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: true, 
-        video: callType === 'video' 
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: true, 
+          video: callType === 'video' 
+        });
+      } catch (videoErr) {
+        if (callType === 'video') {
+          console.warn('Video failed on accept, falling back to audio-only', videoErr);
+          setIsVideoEnabled(false);
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        } else {
+          throw videoErr;
+        }
+      }
+
       localStream.current = stream;
       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
@@ -133,8 +185,9 @@ export default function CallView({
         targetId: targetUser.id
       }));
       onAccept?.();
-    } catch (err) {
-      toast.error('Ошибка при ответе');
+    } catch (err: any) {
+      console.error('Failed to get media on accept', err);
+      toast.error('Не удалось активировать микрофон/камеру');
       handleReject();
     }
   };

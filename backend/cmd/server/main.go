@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -66,6 +67,8 @@ func main() {
 	allowedOrigins := map[string]bool{
 		"http://localhost:5173": true,
 		"http://127.0.0.1:5173": true,
+		"http://localhost:5174": true,
+		"http://127.0.0.1:5174": true,
 	}
 	if raw := os.Getenv("CORS_ALLOWED_ORIGINS"); raw != "" {
 		for _, origin := range strings.Split(raw, ",") {
@@ -118,13 +121,24 @@ func main() {
 		c.JSON(200, gin.H{"ticket": ticket})
 	})
 
+	// WebSocket Connection (Uses ticket issued above)
+	router.GET("/ws", func(c *gin.Context) {
+		websocket.ServeWs(hub, database, c.Writer, c.Request)
+	})
+
+	// --- Static Files ---
+	// Using absolute path for reliability
+	executablePath, _ := os.Getwd()
+	uploadsDir := filepath.Join(executablePath, "uploads")
+	router.Static("/uploads", uploadsDir)
+
+	// API routes (including WebSocket with Ticket auth)
+	api.SetupRoutes(router, database, hub, notifSvc)
+
 	// Fallback for 404
 	router.NoRoute(func(c *gin.Context) {
 		c.JSON(404, gin.H{"error": "Route not found", "path": c.Request.URL.Path})
 	})
-
-	// API routes (including WebSocket with Ticket auth)
-	api.SetupRoutes(router, database, hub, notifSvc)
 
 	// Start server
 	port := cfg.Port

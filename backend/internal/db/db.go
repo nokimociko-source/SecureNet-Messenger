@@ -160,6 +160,7 @@ func Migrate(db *sql.DB) error {
 			author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			content TEXT,
 			media_urls TEXT[],
+			signature TEXT,
 			is_system BOOLEAN DEFAULT false,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
@@ -242,6 +243,9 @@ func Migrate(db *sql.DB) error {
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(64)`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT false`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(100)`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_id BIGINT UNIQUE`,
+		`ALTER TABLE media ALTER COLUMN chat_id DROP NOT NULL`,
+		`ALTER TABLE posts ADD COLUMN IF NOT EXISTS signature TEXT`,
 		`ALTER TABLE users ADD CONSTRAINT IF NOT EXISTS users_email_unique UNIQUE (email)`,
 	}
 
