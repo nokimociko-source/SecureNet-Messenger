@@ -28,9 +28,9 @@ jobs:
         cache: 'npm'
 
     - name: Install dependencies
-      run: npm install
+      run: npm install --legacy-peer-deps
 
-    - name: Build Web Assets
+    - name: Build Web App
       run: npm run build
 
     - name: Sync Capacitor

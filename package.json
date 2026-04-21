@@ -32,8 +32,10 @@
     "@types/node": "22.19.17",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-legacy": "^6.1.1",
     "@vitejs/plugin-react": "5.1.1",
     "tailwindcss": "4.1.17",
+    "terser": "^5.46.1",
     "typescript": "5.9.3",
     "vite": "7.2.4",
     "vite-plugin-singlefile": "2.3.0"
