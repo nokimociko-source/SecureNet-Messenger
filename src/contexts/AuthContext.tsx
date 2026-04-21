@@ -1,7 +1,14 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 
-export const isNative = !!(window as any).__TAURI__ || !!(window as any).Capacitor;
+export const isNative = typeof window !== 'undefined' && (
+  !!(window as any).Capacitor || 
+  !!(window as any)._cap_ || 
+  !!(window as any).__TAURI__ ||
+  window.location.protocol === 'capacitor:' ||
+  (window.location.hostname === 'localhost' && !window.location.port)
+);
+
 const DEFAULT_API_URL = isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api';
 
 // Use localStorage to persist user-defined API URL
