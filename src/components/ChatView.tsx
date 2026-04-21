@@ -213,7 +213,7 @@ export default function ChatView({
   return (
     <div className="h-screen flex flex-col bg-[#0f0a1e]">
       {/* Header */}
-      <div className="glass px-6 py-3 flex items-center justify-between z-10 shadow-2xl border-b border-white/5">
+      <div className="glass px-6 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3 flex items-center justify-between z-10 shadow-2xl border-b border-white/5">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-all text-white/70 hover:text-white active:scale-90">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
@@ -324,7 +324,7 @@ export default function ChatView({
               <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} animate-message`} style={{ marginBottom: isNextSame ? '2px' : '12px' }}>
                 <div
                   onContextMenu={(e) => handleContextMenu(e, message)}
-                  className={`relative max-w-[85%] sm:max-w-[70%] cursor-default select-none transition-all
+                  className={`relative max-w-[92%] sm:max-w-[70%] cursor-default select-none transition-all
                     ${message.type === 'sticker'
                       ? 'bg-transparent shadow-none'
                       : (isOwn ? 'bubble-sent shadow-xl' : 'bubble-received shadow-xl')} 
@@ -432,7 +432,7 @@ export default function ChatView({
       </div>
 
       {/* Input */}
-      <div className="glass p-3 sm:p-4">
+      <div className="glass px-3 sm:px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <div className="max-w-3xl mx-auto">
           {previewUrl && (
             <div className="mb-3 relative p-2 glass rounded-2xl border border-purple-500/30 flex items-center gap-4 animate-message">

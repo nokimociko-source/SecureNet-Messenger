@@ -861,7 +861,7 @@ export default function App() {
       {isAppLocked && <PasscodeUnlock hashedPasscode={localStorage.getItem('app_passcode') || ''} onUnlock={() => setIsAppLocked(false)} />}
       <Toaster position="top-right" />
       <div className={`w-full sm:w-[350px] lg:w-[400px] flex-shrink-0 border-r border-white/5 flex flex-col ${ (activeSession || ['settings', 'admin', 'security'].includes(currentView)) ? 'hidden sm:flex' : 'flex'}`}>
-        <div className="glass px-6 py-4 flex items-center justify-between">
+        <div className="glass px-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-4 flex items-center justify-between border-b border-white/5 shadow-xl">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 flex items-center justify-center font-bold shadow-lg shadow-purple-900/40">C</div>
             <h1 className="font-bold text-xl tracking-tight">Catlover</h1>
@@ -941,7 +941,7 @@ export default function App() {
             </div>
           )}
         </div>
-        <div className="glass p-4 flex justify-around">
+        <div className="glass px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex justify-around border-t border-white/5">
           <button onClick={() => setCurrentView('messenger')} className={`p-2 transition-all ${currentView === 'messenger' ? 'text-purple-400 scale-110' : 'text-white/40 hover:text-white'}`}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
           </button>
