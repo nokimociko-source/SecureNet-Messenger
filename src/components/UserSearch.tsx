@@ -138,19 +138,22 @@ export const UserSearch: React.FC<UserSearchProps> = ({ onAddContact, onClose })
             </div>
           )}
 
-          {results.map((user) => (
+          {results.map((user) => {
+            const displayName = (user as any).name || user.username || 'Unknown';
+            const avatarLetter = displayName.charAt(0).toUpperCase();
+            return (
             <div
               key={user.id}
               className="flex items-center justify-between p-3 bg-white/10 rounded-lg hover:bg-white/20 cursor-pointer transition-all"
-              onClick={() => handleAddContact(user.id, (user as any).name || user.username)}
+              onClick={() => handleAddContact(user.id, displayName)}
             >
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
-                  {(user.name || user.username || 'U').charAt(0).toUpperCase()}
+                  {avatarLetter}
                 </div>
                 <div>
-                  <div className="font-bold text-white">{user.name || user.username || 'Аноним'}</div>
-                  <div className="text-sm text-white/60">{user.phoneNumber || 'Нет телефона'}</div>
+                  <div className="font-bold text-white">{displayName}</div>
+                  <div className="text-sm text-white/60">{(user as any).phoneNumber || 'Нет телефона'}</div>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
@@ -162,7 +165,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({ onAddContact, onClose })
                 </button>
               </div>
             </div>
-          ))}
+          )})}
         </div>
 
         {/* Footer */}

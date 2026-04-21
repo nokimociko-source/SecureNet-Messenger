@@ -20,7 +20,7 @@ func Load() *Config {
 	}
 
 	return &Config{
-		DatabaseURL:     getEnv("DATABASE_URL", "postgresql://localhost:5432/securenet?sslmode=disable"),
+		DatabaseURL:     getEnv("DATABASE_URL", "postgresql://localhost:5432/catlover?sslmode=disable"),
 		Port:            getEnv("PORT", "8080"),
 		JWTSecret:       getEnv("JWT_SECRET", "DANGER_INSECURE_DEFAULT_SECRET_MUST_CHANGE_IN_PRODUCTION"),
 		VAPIDPublicKey:  os.Getenv("VAPID_PUBLIC_KEY"),

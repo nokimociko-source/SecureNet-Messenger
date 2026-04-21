@@ -44,7 +44,7 @@ func (s *AuthService) Register(ctx context.Context, phone, email, username, pass
 	}
 
 	role := "user"
-	// Check if this should be an admin (e.g. first user)
+	// Bootstrap: only the very first account can become admin automatically.
 	count, _ := s.userRepo.Count(ctx)
 	if count == 0 {
 		role = "admin"
