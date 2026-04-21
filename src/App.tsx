@@ -860,7 +860,7 @@ export default function App() {
     <div className="h-screen flex bg-[#0f0a1e] text-white overflow-hidden selection:bg-purple-500/30">
       {isAppLocked && <PasscodeUnlock hashedPasscode={localStorage.getItem('app_passcode') || ''} onUnlock={() => setIsAppLocked(false)} />}
       <Toaster position="top-right" />
-      <div className={`w-full sm:w-[350px] lg:w-[400px] flex-shrink-0 border-r border-white/5 flex flex-col ${activeSession ? 'hidden sm:flex' : 'flex'}`}>
+      <div className={`w-full sm:w-[350px] lg:w-[400px] flex-shrink-0 border-r border-white/5 flex flex-col ${ (activeSession || ['settings', 'admin', 'security'].includes(currentView)) ? 'hidden sm:flex' : 'flex'}`}>
         <div className="glass px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 flex items-center justify-center font-bold shadow-lg shadow-purple-900/40">C</div>
