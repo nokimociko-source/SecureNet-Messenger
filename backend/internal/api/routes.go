@@ -133,6 +133,52 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 
 	}
 
+	// Public self-hosted update feed (GitHub Releases / Telegram CDN / any HTTPS URL).
+	r.GET("/api/updates/latest", func(c *gin.Context) {
+		platform := strings.ToLower(strings.TrimSpace(c.Query("platform")))
+		if platform != "android" && platform != "windows" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "platform must be android or windows"})
+			return
+		}
+
+		type updateConfig struct {
+			version string
+			url     string
+			sha256  string
+			notes   string
+		}
+
+		cfgMap := map[string]updateConfig{
+			"android": {
+				version: strings.TrimSpace(os.Getenv("ANDROID_LATEST_VERSION")),
+				url:     strings.TrimSpace(os.Getenv("ANDROID_APK_URL")),
+				sha256:  strings.TrimSpace(os.Getenv("ANDROID_APK_SHA256")),
+				notes:   strings.TrimSpace(os.Getenv("ANDROID_RELEASE_NOTES")),
+			},
+			"windows": {
+				version: strings.TrimSpace(os.Getenv("WINDOWS_LATEST_VERSION")),
+				url:     strings.TrimSpace(os.Getenv("WINDOWS_INSTALLER_URL")),
+				sha256:  strings.TrimSpace(os.Getenv("WINDOWS_INSTALLER_SHA256")),
+				notes:   strings.TrimSpace(os.Getenv("WINDOWS_RELEASE_NOTES")),
+			},
+		}
+
+		upd := cfgMap[platform]
+		if upd.version == "" || upd.url == "" || upd.sha256 == "" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "update metadata not configured"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"platform":          platform,
+			"version":           upd.version,
+			"url":               upd.url,
+			"sha256":            upd.sha256,
+			"releaseNotes":      upd.notes,
+			"signatureRequired": true,
+		})
+	})
+
 	// Protected routes
 	authorized := r.Group("/api")
 	authorized.Use(authMiddleware(cfg.JWTSecret, db))
