@@ -80,8 +80,8 @@ export default function SettingsView({
   const checkUpdates = async () => {
     setUpdateInfo(prev => ({ ...prev, status: 'checking' }));
     try {
-      // 1. Try GitHub Node first (DemonestoriCat)
-      const ghResponse = await fetch('https://raw.githubusercontent.com/DemonestoriCat/Catlover/master/update.json').catch(() => null);
+      // 1. Try GitHub Node first (nokimociko-source)
+      const ghResponse = await fetch('https://raw.githubusercontent.com/nokimociko-source/SecureNet-Messenger/master/update.json').catch(() => null);
       
       if (ghResponse && ghResponse.ok) {
         const data = await ghResponse.json();
