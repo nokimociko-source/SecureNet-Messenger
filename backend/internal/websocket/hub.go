@@ -143,7 +143,7 @@ func (h *Hub) SendToUser(userID uuid.UUID, msg *models.WSMessage) {
 		}
 		
 		// Send push to all user's devices
-		h.NotifSvc.SendPush(userID, "🔒 SecureNet", content, map[string]interface{}{
+		h.NotifSvc.SendPush(userID, "🐾 Catlover", content, map[string]interface{}{
 			"chatId": msg.ChatID,
 			"type":   "NEW_MESSAGE", // Align with sw.js expectation
 		})

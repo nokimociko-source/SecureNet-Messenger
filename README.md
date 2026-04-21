@@ -1,54 +1,37 @@
-# 🐾 Catlover Messenger (Production Ready)
+# 🐾 Catlover Messenger (Enterprise Hardened)
+**The Ultimate Privacy Protocol for Mass Communication.**
 
-Military-grade E2EE messenger with Zero-Knowledge architecture, high-quality media support, and Double Ratchet security.
+Catlover is a military-grade, cross-platform communication system built on a **Zero-Knowledge Architecture**. Developed by **DemonestoriCat** and designed for 70M+ users, it ensures that your identity, messages, and social metadata are mathematically shielded from surveillance.
 
-## 🚀 Key Features
-- **Zero-Knowledge E2EE**: All messages and media are encrypted on the device using WebCrypto API.
-- **Double Ratchet (Signal Protocol)**: Perfect Forward Secrecy for every session.
-- **High-Quality Media**: Encrypted binary blob transfers without standard browser compression.
-- **Saved Messages**: Telegram-style private storage for notes and files.
-- **Military-Grade Infrastructure**: Go backend with Nginx Anti-DDoS protection.
-- **Cross-Platform**: Web, Android (Kotlin), and Windows (Tauri/Rust) support.
+## 🚀 Vision
+Our mission is to eliminate the concept of "trusted third parties". In the Catlover ecosystem, the only entity you trust is the laws of mathematics.
 
-## 🛡 Security Architecture
-- **Encryption**: AES-256-GCM for messages, RSA-4096 for identity.
-- **Authentication**: JWT-based sessions with password-derived Master Key.
-- **Privacy**: No metadata leaks, restricted WebSocket broadcasting, and selective presence.
+## ✨ Key Features
+- **Quantum-Resistant Preparedness**: Using **NIST P-521** (the strongest NIST curve) for all key agreements.
+- **Double Ratchet (Signal Protocol)**: Every message has its own unique, temporary encryption key.
+- **Client-Side Sovereignty**: Digital signatures (ECDSA SHA-512) for all social posts ensure cryptographically verified authorship.
+- **High-Quality Encrypted Media**: AES-256-GCM encrypted binary transfers.
+
+## 🛡 Security Specifications
+- **Asymmetric**: ECDH (P-521) / X3DH.
+- **Signatures**: ECDSA with SHA-512.
+- **Symmetric**: AES-256-GCM.
+- **KDF**: PBKDF2 (SHA-512, 600,000 iterations).
 
 ## 🛠 Tech Stack
-- **Frontend**: React, Vite, TypeScript, Tailwind CSS.
 - **Backend**: Go (Golang), PostgreSQL, Redis.
-- **Infra**: Nginx (WAF/Anti-DDoS), Docker Compose.
+- **Frontend**: React, Vite, TypeScript.
 - **Mobile**: Kotlin (Android Native).
-- **Desktop**: Rust/Tauri.
+- **Desktop**: Rust / Tauri.
 
 ## 📦 Getting Started
-
-### Prerequisites
-- Docker & Docker Compose
-- Node.js 18+
-
-### Launch with Docker (Recommended)
 ```bash
+# Launch the entire stack
 docker-compose up -d --build
 ```
 
-### Local Development
-1. **Backend**:
-   ```bash
-   cd backend
-   go run ./cmd/server/main.go
-   ```
-2. **Frontend**:
-   ```bash
-   npm install
-   npm run dev
-   ```
+## 📜 Legal
+See [PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) and [TERMS_OF_SERVICE.md](docs/TERMS_OF_SERVICE.md).
 
-## 🏗 CI/CD
-Automated pipelines via GitHub Actions:
-- **Backend**: Build, Test, and Security Scan (gosec).
-- **Frontend**: Type-check (tsc) and Production Build.
-
-## 📜 License
-Private / Proprietary
+---
+© 2026 DemonestoriCat Systems. All rights reserved.

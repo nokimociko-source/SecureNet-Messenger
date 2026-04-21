@@ -121,7 +121,7 @@ export default function App() {
       wsRef.current = socket;
     
     socket.onopen = () => { 
-      console.log('⚡️ SecureNet Connected'); 
+      console.log('⚡️ Catlover Connected'); 
       setWsConnected(true); 
     };
 
@@ -293,8 +293,7 @@ export default function App() {
           type: (m.msg_type || m.type || 'text').trim() as any,
           status: m.status || 'sent',
           mediaId: m.mediaId || m.media_id,
-          fileUrl: (m.mediaId || m.media_id) 
-            ? `/api/media/${m.mediaId || m.media_id}?token=${localStorage.getItem('token')}` 
+          fileUrl: (m.mediaId || m.media_id)                ? `/api/media/${m.mediaId || m.media_id}` 
             : undefined,
           encrypted: true
         }));
