@@ -11,6 +11,7 @@
 const CACHE_NAME = 'securenet-v3';
 const STATIC_CACHE = 'securenet-static-v3';
 const DYNAMIC_CACHE = 'securenet-dynamic-v3';
+let authToken = null; // Stored in memory only
 
 // Files to cache immediately
 const STATIC_FILES = [
@@ -84,8 +85,27 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    fetch(request)
-      .then((response) => {
+    (async () => {
+      // ✅ SECURITY: Injected Auth header for media requests
+      if (url.pathname.startsWith('/api/media/') && authToken) {
+        const headers = new Headers(request.headers);
+        headers.set('Authorization', `Bearer ${authToken}`);
+        
+        const authenticatedRequest = new Request(request, {
+          headers: headers,
+          mode: 'cors',
+          credentials: 'omit'
+        });
+        
+        try {
+          return await fetch(authenticatedRequest);
+        } catch (e) {
+          console.error('[SW] Media fetch failed:', e);
+        }
+      }
+
+      try {
+        const response = await fetch(request);
         // Only cache successful standard requests
         if (response && response.status === 200 && response.type === 'basic') {
           const responseClone = response.clone();
@@ -94,19 +114,17 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return response;
-      })
-      .catch(async () => {
+      } catch (error) {
         const cachedResponse = await caches.match(request);
         if (cachedResponse) return cachedResponse;
         
-        // Return a basic fallback for HTML requests if both network and cache fail
         if (request.headers.get('accept')?.includes('text/html')) {
           return caches.match('/');
         }
         
-        // Fallback: return a dummy 404 response instead of crashing
         return new Response('Not found', { status: 404, statusText: 'Not Found' });
-      })
+      }
+    })()
   );
 });
 
@@ -224,6 +242,11 @@ async function syncMessages() {
 self.addEventListener('message', (event) => {
   console.log('[SW] Message from client:', event.data);
   
+  if (event.data && event.data.type === 'SET_TOKEN') {
+    authToken = event.data.token;
+    console.log('[SW] Auth token updated');
+  }
+
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }

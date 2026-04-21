@@ -92,6 +92,15 @@ export default function App() {
       return;
     }
 
+    
+    // Sync token with Service Worker for media auth
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SET_TOKEN',
+        token: localStorage.getItem('token')
+      });
+    }
+
     if (wsRef.current) {
       wsRef.current.onclose = null; // Prevent retry on intentional close
       wsRef.current.close();
@@ -137,7 +146,7 @@ export default function App() {
               status: msg.status || 'sent',
               mediaId: msg.mediaId || msg.media_id,
               fileUrl: (msg.mediaId || msg.media_id) 
-                ? `/api/media/${msg.mediaId || msg.media_id}?token=${localStorage.getItem('token')}` 
+                ? `/api/media/${msg.mediaId || msg.media_id}` 
                 : undefined,
               encrypted: true
             }];
@@ -610,7 +619,7 @@ export default function App() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('chatId', activeSession.id);
-      const response = await fetch(`http://localhost:8080/api/media/upload`, {
+      const response = await fetch(`/api/media/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: formData

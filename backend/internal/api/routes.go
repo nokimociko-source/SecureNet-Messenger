@@ -1639,9 +1639,7 @@ func parseInt(s string) (int, error) {
 func adminMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role := c.GetString("role")
-		// Also allow specific super-admin phone numbers as fallback
-		// In a real app we'd fetch this from the context if we set it in authMiddleware
-		// For now, let's rely on the role
+		// Strict RBAC enforcement
 		if role != "admin" {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 			return
@@ -1662,10 +1660,10 @@ func authMiddleware(secret string, db *sql.DB) gin.HandlerFunc {
 			}
 		}
 		
-		// Fallback to query parameter for media/file requests
-		if tokenString == "" {
-			tokenString = c.Query("token")
-		}
+		/* 
+		   DEPRECATED: Insecure token fallback removed per security audit.
+		   Only Authorization: Bearer <token> is supported.
+		*/
 
 		if tokenString == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Missing token"})

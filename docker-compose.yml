@@ -8,8 +8,8 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DB_TYPE=postgres
-      - DB_URL=postgres://user:password@db:5432/securenet?sslmode=disable
+      - DB_TYPE=${DB_TYPE:-postgres}
+      - DB_URL=${DB_URL:-postgres://user:password@db:5432/securenet?sslmode=disable}
       - REDIS_URL=redis:6379
       - SPANNER_EMULATOR_HOST=spanner:9010
       - BIGTABLE_EMULATOR_HOST=bigtable:9000
@@ -24,9 +24,9 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=securenet
+      - POSTGRES_USER=${DB_USER:-user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-password}
+      - POSTGRES_DB=${DB_NAME:-securenet}
     ports:
       - "5432:5432"
     networks:
