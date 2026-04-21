@@ -35,6 +35,8 @@ export default function ChatView({
   onBack,
   onCall,
   onVideoCall,
+  onUpdateGroup,
+  onAddMember,
   onRemoveMember,
   onLeaveGroup,
   onBlockUser

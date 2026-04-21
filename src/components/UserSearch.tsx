@@ -146,11 +146,11 @@ export const UserSearch: React.FC<UserSearchProps> = ({ onAddContact, onClose })
             >
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
-                  {(user as any).name?.charAt(0).toUpperCase() || user.username.charAt(0).toUpperCase()}
+                  {(user.name || user.username || 'U').charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <div className="font-bold text-white">{(user as any).name || user.username}</div>
-                  <div className="text-sm text-white/60">{(user as any).phoneNumber || 'Нет телефона'}</div>
+                  <div className="font-bold text-white">{user.name || user.username || 'Аноним'}</div>
+                  <div className="text-sm text-white/60">{user.phoneNumber || 'Нет телефона'}</div>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
