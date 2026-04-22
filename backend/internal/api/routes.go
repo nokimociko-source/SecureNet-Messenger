@@ -24,6 +24,13 @@ import (
 	"securenet-backend/internal/websocket"
 )
 
+type updateInfo struct {
+	Version string `json:"version"`
+	URL     string `json:"url"`
+	SHA256  string `json:"sha256"`
+	Notes   string `json:"notes"`
+}
+
 func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *services.NotificationService) {
 	cfg := config.Load()
 	auditService := services.NewAuditService(db)
@@ -256,20 +263,13 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 
 	// Updates (Public)
 	r.GET("/api/updates/latest", func(c *gin.Context) {
-		platform := c.Query("platform") // android, windows
+		platform := c.Query("platform")
 		if platform == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "platform required"})
 			return
 		}
 
-		type updateInfo struct {
-			version string
-			url     string
-			sha256  string
-			notes   string
-		}
-
-		// Use environment variables with sensible defaults to avoid 404
+		// Use environment variables with sensible defaults
 		androidVersion := os.Getenv("ANDROID_LATEST_VERSION")
 		if androidVersion == "" { androidVersion = "0.1.0" }
 		
@@ -284,26 +284,26 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 
 		cfgMap := map[string]updateInfo{
 			"android": {
-				version: androidVersion,
-				url:     androidUrl,
-				sha256:  os.Getenv("ANDROID_APK_SHA256"),
-				notes:   os.Getenv("ANDROID_RELEASE_NOTES"),
+				Version: androidVersion,
+				URL:     androidUrl,
+				SHA256:  os.Getenv("ANDROID_APK_SHA256"),
+				Notes:   os.Getenv("ANDROID_RELEASE_NOTES"),
 			},
 			"windows": {
-				version: winVersion,
-				url:     winUrl,
-				sha256:  os.Getenv("WINDOWS_INSTALLER_SHA256"),
-				notes:   os.Getenv("WINDOWS_RELEASE_NOTES"),
+				Version: winVersion,
+				URL:     winUrl,
+				SHA256:  os.Getenv("WINDOWS_INSTALLER_SHA256"),
+				Notes:   os.Getenv("WINDOWS_RELEASE_NOTES"),
 			},
 		}
 
 		upd := cfgMap[platform]
 		c.JSON(http.StatusOK, gin.H{
 			"platform":          platform,
-			"version":           upd.version,
-			"url":               upd.url,
-			"sha256":            upd.sha256,
-			"releaseNotes":      upd.notes,
+			"version":           upd.Version,
+			"url":               upd.URL,
+			"sha256":            upd.SHA256,
+			"releaseNotes":      upd.Notes,
 			"signatureRequired": true,
 		})
 	})
@@ -349,6 +349,45 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 				"totalUsers":        totalUsers,
 				"activeConnections": activeConnections,
 				"messagesToday":     messagesToday,
+			})
+		})
+
+		authorized.GET("/audit/activity/weekly", func(c *gin.Context) {
+			role := c.GetString("role")
+			if role != "admin" && role != "moderator" {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+				return
+			}
+
+			// Get daily message counts for the last 7 days
+			rows, err := db.Query(`
+				SELECT 
+					to_char(to_timestamp(timestamp), 'DD.MM') as day,
+					COUNT(*) as count
+				FROM messages 
+				WHERE timestamp > $1
+				GROUP BY day
+				ORDER BY day ASC`, time.Now().Add(-7*24*time.Hour).Unix())
+			
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			defer rows.Close()
+
+			var labels []string
+			var values []int
+			for rows.Next() {
+				var day string
+				var count int
+				rows.Scan(&day, &count)
+				labels = append(labels, day)
+				values = append(values, count)
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"labels": labels,
+				"values": values,
 			})
 		})
 
