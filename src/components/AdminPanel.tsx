@@ -16,6 +16,7 @@ export default function AdminPanel({ onBack }: { onBack: () => void }) {
   const { apiRequest } = useAuth();
   const [currentTab, setCurrentTab] = useState<TabType>('overview');
   const [stats, setStats] = useState({ totalUsers: 0, activeConnections: 0, messagesToday: 0 });
+  const [weeklyActivity, setWeeklyActivity] = useState<{ labels: string[], values: number[] }>({ labels: [], values: [] });
   const [users, setUsers] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
@@ -42,11 +43,20 @@ export default function AdminPanel({ onBack }: { onBack: () => void }) {
 
   const loadStats = async () => {
     try {
-      const res = await apiRequest('/audit/stats');
-      const data = await res.json();
-      setStats(data);
+      const [statsRes, activityRes] = await Promise.all([
+        apiRequest('/audit/stats'),
+        apiRequest('/audit/activity/weekly')
+      ]);
+      const statsData = await statsRes.json();
+      const activityData = await activityRes.json();
+      setStats(statsData);
+      setWeeklyActivity(activityData);
     } catch (e) {
       setStats({ totalUsers: 1250, activeConnections: 42, messagesToday: 8900 });
+      setWeeklyActivity({ 
+        labels: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+        values: [120, 250, 180, 450, 320, 150, 280]
+      });
     }
   };
 
@@ -204,17 +214,24 @@ export default function AdminPanel({ onBack }: { onBack: () => void }) {
                 </select>
               </div>
               <div className="h-48 flex items-end gap-1.5 sm:gap-3 px-2 sm:px-4">
-                {[45, 67, 42, 89, 56, 92, 78].map((val, i) => (
-                  <div key={i} className="flex-1 group relative">
-                    <div
-                      className="w-full bg-gradient-to-t from-purple-600 to-indigo-400 rounded-t-xl transition-all duration-500 group-hover:from-purple-500 group-hover:to-pink-400"
-                      style={{ height: `${val}%` }}
-                    ></div>
-                  </div>
-                ))}
+                {weeklyActivity.values.map((val, i) => {
+                  const max = Math.max(...weeklyActivity.values, 1);
+                  const height = (val / max) * 100;
+                  return (
+                    <div key={i} className="flex-1 group relative">
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-white/10 px-2 py-1 rounded text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 font-bold">
+                        {val} msg
+                      </div>
+                      <div
+                        className="w-full bg-gradient-to-t from-purple-600 to-indigo-400 rounded-t-xl transition-all duration-500 group-hover:from-purple-500 group-hover:to-pink-400"
+                        style={{ height: `${height}%` }}
+                      ></div>
+                    </div>
+                  );
+                })}
               </div>
               <div className="flex justify-between mt-4 px-2 sm:px-4 text-[8px] sm:text-[10px] font-bold text-white/20 uppercase tracking-widest">
-                <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+                {weeklyActivity.labels.map(label => <span key={label}>{label}</span>)}
               </div>
             </div>
           </div>
