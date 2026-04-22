@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 
 	"securenet-backend/internal/api"
 	"securenet-backend/internal/auth"
@@ -22,7 +22,7 @@ import (
 
 var (
 	router   *gin.Engine
-	database *sqlx.DB
+	database *sql.DB
 	hub      *websocket.Hub
 	notifSvc *services.NotificationService
 	once     sync.Once
@@ -40,14 +40,16 @@ func initApp() {
 		return
 	}
 
-	// Run migrations (optional, maybe better to do elsewhere for serverless)
-	db.Migrate(database)
+	// Run migrations
+	if err := db.Migrate(database); err != nil {
+		log.Printf("⚠️ Migration warning: %v", err)
+	}
 
 	// Initialize services
 	notifSvc = services.NewNotificationService(database)
 	chatRepo := postgres.NewChatRepo(database)
 	
-	// Setup WebSocket hub (Note: WS won't work normally in serverless, but we keep it for logic compatibility)
+	// Setup WebSocket hub (Logic compatibility)
 	hub = websocket.NewHub(chatRepo, notifSvc)
 	go hub.Run()
 
@@ -110,10 +112,10 @@ func initApp() {
 	// Main API routes
 	api.SetupRoutes(router, database, hub, notifSvc)
 
-	// WebSocket fallback error (Vercel doesn't support WS)
+	// WebSocket fallback error
 	router.GET("/api/ws", func(c *gin.Context) {
 		c.JSON(http.StatusNotImplemented, gin.H{
-			"error": "WebSockets are not supported on Vercel Serverless. Please use the mobile app or a dedicated server for real-time features.",
+			"error": "WebSockets are not supported on Vercel Serverless.",
 		})
 	})
 }
