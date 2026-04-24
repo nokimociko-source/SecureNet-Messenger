@@ -1,3 +1,4 @@
+// Vercel Build Trigger: v0.1.3-beta-fix1
 import path from "path";
 import { fileURLToPath } from "url";
 import legacy from '@vitejs/plugin-legacy';
