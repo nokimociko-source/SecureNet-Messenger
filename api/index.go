@@ -11,13 +11,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"securenet-backend/internal/api"
-	"securenet-backend/internal/auth"
-	"securenet-backend/internal/config"
-	"securenet-backend/internal/db"
-	"securenet-backend/internal/repository/postgres"
-	"securenet-backend/internal/services"
-	"securenet-backend/internal/websocket"
+	"securenet-backend/core/api"
+	"securenet-backend/core/auth"
+	"securenet-backend/core/config"
+	"securenet-backend/core/db"
+	"securenet-backend/core/repository/postgres"
+	"securenet-backend/core/services"
+	"securenet-backend/core/websocket"
 )
 
 var (
