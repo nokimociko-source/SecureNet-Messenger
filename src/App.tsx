@@ -126,7 +126,7 @@ export default function App() {
       return;
     }
 
-    const API_BASE_URL = localStorage.getItem('custom_api_url') || (isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api');
+    const API_BASE_URL = localStorage.getItem('custom_api_url') || '/api';
 
     // Sync token with Service Worker for media auth
     if (navigator.serviceWorker.controller) {
@@ -367,7 +367,7 @@ export default function App() {
           type: (m.msg_type || m.type || 'text').trim() as any,
           status: m.status || 'sent',
           mediaId: m.mediaId || m.media_id,
-          fileUrl: (m.mediaId || m.media_id) ? `${localStorage.getItem('custom_api_url') || (isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api')}/media/${m.mediaId || m.media_id}`
+          fileUrl: (m.mediaId || m.media_id) ? `${localStorage.getItem('custom_api_url') || '/api'}/media/${m.mediaId || m.media_id}`
             : undefined,
           encrypted: true
         }));
@@ -692,7 +692,7 @@ export default function App() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('chatId', activeSession.id);
-      const API_BASE_URL = localStorage.getItem('custom_api_url') || (isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api');
+      const API_BASE_URL = localStorage.getItem('custom_api_url') || '/api';
       const response = await fetch(`${API_BASE_URL}/media/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },

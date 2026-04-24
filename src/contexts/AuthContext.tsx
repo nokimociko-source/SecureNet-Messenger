@@ -9,7 +9,7 @@ export const isNative = typeof window !== 'undefined' && (
   (window.location.hostname === 'localhost' && !window.location.port)
 );
 
-const DEFAULT_API_URL = isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api';
+const DEFAULT_API_URL = '/api';
 
 // Use localStorage to persist user-defined API URL
 const getApiBase = () => localStorage.getItem('custom_api_url') || DEFAULT_API_URL;

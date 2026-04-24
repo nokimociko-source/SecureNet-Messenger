@@ -1092,7 +1092,7 @@ export default function SettingsView({
             </div>
             <p className="text-[10px] text-white/30 px-4">
               Пример: https://api.myserver.com/api<br/>
-              По умолчанию: {isNative ? 'https://yhiscizk-securenet-messenger.hf.space/api' : '/api'}
+              По умолчанию: /api
             </p>
           </div>
         </div>
