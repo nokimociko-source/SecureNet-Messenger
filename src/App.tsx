@@ -378,7 +378,7 @@ export default function App() {
 
   const initializeApp = async () => {
     try {
-      console.log('🔐 Initializing SecureNet v0.1.2-beta...');
+      console.log('🔐 Initializing SecureNet v0.1.3-beta...');
       const storedUser = localStorage.getItem('currentUser');
       const storedToken = localStorage.getItem('token');
 
