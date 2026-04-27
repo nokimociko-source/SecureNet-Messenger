@@ -7,11 +7,12 @@ import (
 )
 
 type Config struct {
-	DatabaseURL     string
-	Port            string
-	JWTSecret       string
-	VAPIDPublicKey  string
-	VAPIDPrivateKey string
+	DatabaseURL      string
+	Port             string
+	JWTSecret        string
+	VAPIDPublicKey   string
+	VAPIDPrivateKey  string
+	TelegramBotToken string
 }
 
 func Load() *Config {
@@ -20,11 +21,12 @@ func Load() *Config {
 	}
 
 	return &Config{
-		DatabaseURL:     getEnv("DATABASE_URL", "postgresql://localhost:5432/catlover?sslmode=disable"),
-		Port:            getEnv("PORT", "8080"),
-		JWTSecret:       getEnv("JWT_SECRET", "DANGER_INSECURE_DEFAULT_SECRET_MUST_CHANGE_IN_PRODUCTION"),
-		VAPIDPublicKey:  os.Getenv("VAPID_PUBLIC_KEY"),
-		VAPIDPrivateKey: os.Getenv("VAPID_PRIVATE_KEY"),
+		DatabaseURL:      getEnv("DATABASE_URL", "postgresql://localhost:5432/catlover?sslmode=disable"),
+		Port:             getEnv("PORT", "8080"),
+		JWTSecret:        getEnv("JWT_SECRET", "DANGER_INSECURE_DEFAULT_SECRET_MUST_CHANGE_IN_PRODUCTION"),
+		VAPIDPublicKey:   os.Getenv("VAPID_PUBLIC_KEY"),
+		VAPIDPrivateKey:  os.Getenv("VAPID_PRIVATE_KEY"),
+		TelegramBotToken: os.Getenv("TELEGRAM_BOT_TOKEN"),
 	}
 }
 

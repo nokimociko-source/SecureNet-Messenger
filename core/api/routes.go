@@ -49,8 +49,8 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 	socialSvc := services.NewSocialService(db)
 	cryptoSvc := services.NewCryptoService(db)
 
-	testToken := "8373955670:AAHa3LGqmu_FesuOUMZCUpvqhxGwWYzRADk"
-	tgImporter := services.NewTelegramImporter(testToken, "./uploads", mediaSvc)
+	telegramToken := cfg.TelegramBotToken
+	tgImporter := services.NewTelegramImporter(telegramToken, "./uploads", mediaSvc)
 
 	// --- Telegram Bot Webhook ---
 	r.POST("/api/telegram/webhook", func(c *gin.Context) {
@@ -64,7 +64,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 		}
 
 		tgID := update.Message.From.ID
-		botToken := testToken
+		botToken := telegramToken
 
 		// Handle Start command for linking: /start <SecureNet-UUID>
 		if strings.HasPrefix(update.Message.Text, "/start") {
@@ -560,7 +560,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			userID, _ := uuid.Parse(c.GetString("userId"))
 			
 			// 1. Get sticker set info from Telegram
-			url := fmt.Sprintf("https://api.telegram.org/bot%s/getStickerSet?name=%s", testToken, req.PackName)
+			url := fmt.Sprintf("https://api.telegram.org/bot%s/getStickerSet?name=%s", telegramToken, req.PackName)
 			log.Printf("📥 Importing sticker pack: %s (URL: %s)", req.PackName, url)
 			
 			// Increased timeout and force IPv4 for better reliability
@@ -617,7 +617,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			log.Println("🤖 Telegram Polling started...")
 			var lastUpdateID int64
 			for {
-				url := fmt.Sprintf("https://api.telegram.org/bot%s/getUpdates?offset=%d&timeout=30", testToken, lastUpdateID+1)
+				url := fmt.Sprintf("https://api.telegram.org/bot%s/getUpdates?offset=%d&timeout=30", telegramToken, lastUpdateID+1)
 				resp, err := http.Get(url)
 				if err != nil {
 					time.Sleep(5 * time.Second)
@@ -645,13 +645,13 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 							parts := strings.Split(update.Message.Text, " ")
 							if len(parts) > 1 {
 								userRepo.LinkTelegramID(context.Background(), parts[1], tgID)
-								sendTelegramMessage(testToken, tgID, "✅ Привязано! Шли стикер.")
+								sendTelegramMessage(telegramToken, tgID, "✅ Привязано! Шли стикер.")
 							}
 						} else if update.Message.Sticker != nil {
 							user, _ := userRepo.GetByTelegramID(context.Background(), tgID)
 							if user != nil {
 								tgImporter.ImportSticker(context.Background(), user.ID, update.Message.Sticker.FileID)
-								sendTelegramMessage(testToken, tgID, "✅ Стикер улетел в Catlover!")
+								sendTelegramMessage(telegramToken, tgID, "✅ Стикер улетел в Catlover!")
 							}
 						}
 					}
