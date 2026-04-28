@@ -51,12 +51,23 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 800,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom'],
-          'vendor-utils': ['date-fns', 'lucide-react', 'react-hot-toast'],
-          'crypto-lib': ['./src/crypto/webcrypto.ts']
+        codeSplitting: {
+          groups: [
+            {
+              name: 'vendor-react',
+              test: /node_modules\/(react|react-dom)/,
+            },
+            {
+              name: 'vendor-utils',
+              test: /node_modules\/(date-fns|lucide-react|react-hot-toast)/,
+            },
+            {
+              name: 'crypto-lib',
+              test: /src\/crypto\/webcrypto\.ts/,
+            }
+          ]
         }
       }
     }
