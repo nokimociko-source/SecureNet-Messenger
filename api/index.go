@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"securenet-backend/core/api"
-	"securenet-backend/core/auth"
 	"securenet-backend/core/config"
 	"securenet-backend/core/db"
 	"securenet-backend/core/repository/postgres"
