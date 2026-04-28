@@ -322,52 +322,69 @@ export default function SettingsView({
 
   useEffect(() => {
     const checkPush = async () => {
-      try {
-        const perm = await PushNotifications.checkPermissions();
-        setPushEnabled(perm.receive === 'granted');
-        setPushSupported(true);
-        
-        if (perm.receive === 'granted') {
-          PushNotifications.addListener('registration', (token) => {
-             apiRequest('/auth/push-subscription', {
-               method: 'POST',
-               body: JSON.stringify({ token: token.value, platform: 'android' })
-             });
-          });
-          PushNotifications.addListener('registrationError', (err) => {
-             console.error('Push registration error:', err);
-          });
+      if (isNative) {
+        try {
+          const perm = await PushNotifications.checkPermissions();
+          setPushEnabled(perm.receive === 'granted');
+          setPushSupported(true);
+          
+          if (perm.receive === 'granted') {
+            PushNotifications.addListener('registration', (token) => {
+               apiRequest('/auth/push-subscription', {
+                 method: 'POST',
+                 body: JSON.stringify({ token: token.value, platform: 'android' })
+               });
+            });
+            PushNotifications.addListener('registrationError', (err) => {
+               console.error('Push registration error:', err);
+            });
+          }
+        } catch (e) {
+          console.warn('Native push notifications failed, falling back to web push');
+          setupWebPush();
         }
-      } catch (e) {
-        // Fallback for web
-        const permission = await checkNotificationPermission();
-        setPushEnabled(permission === 'granted');
-        setPushSupported(permission !== 'unsupported');
+      } else {
+        setupWebPush();
       }
     };
+
+    const setupWebPush = async () => {
+      const permission = await checkNotificationPermission();
+      setPushEnabled(permission === 'granted');
+      setPushSupported(permission !== 'unsupported');
+    };
+
     checkPush();
 
     return () => {
-      PushNotifications.removeAllListeners();
+      if (isNative) {
+        try {
+          PushNotifications.removeAllListeners();
+        } catch (e) {}
+      }
     };
   }, []);
 
   const handleEnablePush = async () => {
-    try {
-      let perm = await PushNotifications.checkPermissions();
-      if (perm.receive !== 'granted') {
-        perm = await PushNotifications.requestPermissions();
+    if (isNative) {
+      try {
+        let perm = await PushNotifications.checkPermissions();
+        if (perm.receive !== 'granted') {
+          perm = await PushNotifications.requestPermissions();
+        }
+        
+        if (perm.receive === 'granted') {
+          await PushNotifications.register();
+          setPushEnabled(true);
+          toast.success('Уведомления включены!');
+        } else {
+          toast.error('Доступ к уведомлениям запрещен');
+        }
+      } catch (e) {
+        toast.error('Ошибка при активации нативных уведомлений');
       }
-      
-      if (perm.receive === 'granted') {
-        await PushNotifications.register();
-        setPushEnabled(true);
-        toast.success('Уведомления включены!');
-      } else {
-        toast.error('Доступ к уведомлениям запрещен');
-      }
-    } catch (e) {
-      // Fallback for web
+    } else {
+      // Web push logic
       const granted = await requestNotificationPermission();
       if (granted) {
         const sub = await subscribeUserToPush();

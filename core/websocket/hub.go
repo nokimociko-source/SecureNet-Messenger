@@ -195,7 +195,7 @@ func (h *Hub) SendToUser(userID uuid.UUID, msg *models.WSMessage) {
 
 	// Try to send via Pusher if available
 	if h.PusherSvc != nil {
-		channel := "user-" + userID.String()
+		channel := "private-user-" + userID.String()
 		h.PusherSvc.Trigger(channel, "ws-event", msg)
 	}
 

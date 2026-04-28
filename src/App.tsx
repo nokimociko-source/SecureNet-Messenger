@@ -200,19 +200,28 @@ export default function App() {
   const initPusher = (userId: string) => {
     if (pusherRef.current) return;
 
+    const API_BASE_URL = localStorage.getItem('custom_api_url') || '/api';
+    const token = localStorage.getItem('token');
+
     const pusher = new Pusher('6c40eb129881d9bb18cf', {
       cluster: 'mt1',
-      forceTLS: true
+      forceTLS: true,
+      authEndpoint: `${API_BASE_URL}/auth/pusher/auth`,
+      auth: {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
     });
 
-    const channel = pusher.subscribe(`user-${userId}`);
+    const channel = pusher.subscribe(`private-user-${userId}`);
     channel.bind('ws-event', (data: any) => {
       console.log('📡 Pusher Event received:', data);
       handleIncomingWSEvent(data);
     });
 
     pusherRef.current = pusher;
-    console.log('⚡️ Pusher Connected');
+    console.log('⚡️ Pusher Connected (Private Channel)');
   };
 
   const initWebSocket = async (token: string) => {

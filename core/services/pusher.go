@@ -38,3 +38,10 @@ func (s *PusherService) Trigger(channel string, event string, data interface{}) 
 	}
 	return s.client.Trigger(channel, event, data)
 }
+
+func (s *PusherService) Authenticate(channelName, socketID string) ([]byte, error) {
+	if s.client == nil {
+		return nil, nil
+	}
+	return s.client.AuthenticatePrivateChannel([]byte(channelName), socketID)
+}

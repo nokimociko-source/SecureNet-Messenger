@@ -31,7 +31,7 @@ type updateInfo struct {
 	Notes   string `json:"notes"`
 }
 
-func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *services.NotificationService) {
+func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *services.NotificationService, pusherSvc *services.PusherService) {
 	cfg := config.Load()
 	auditService := services.NewAuditService(db)
 
@@ -244,6 +244,28 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 
 		authGroup.GET("/vapid-key", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"publicKey": cfg.VAPIDPublicKey})
+		})
+		
+		authGroup.POST("/pusher/auth", authMiddleware(cfg.JWTSecret), func(c *gin.Context) {
+			socketID := c.PostForm("socket_id")
+			channelName := c.PostForm("channel_name")
+			userID := c.GetString("userId")
+
+			// Security: ensure the user is only subscribing to their own channel
+			// Channel name should be: private-user-[userID]
+			expectedChannel := fmt.Sprintf("private-user-%s", userID)
+			if channelName != expectedChannel {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden channel"})
+				return
+			}
+
+			auth, err := pusherSvc.Authenticate(channelName, socketID)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			c.Data(http.StatusOK, "application/json", auth)
 		})
 
 		authGroup.POST("/push-subscription", authMiddleware(cfg.JWTSecret), func(c *gin.Context) {

@@ -107,7 +107,7 @@ func initApp() error {
 	})
 
 	// Main API routes
-	api.SetupRoutes(newRouter, dbConn, newHub, newNotifSvc)
+	api.SetupRoutes(newRouter, dbConn, newHub, newNotifSvc, newPusherSvc)
 
 	// WebSocket fallback error
 	newRouter.GET("/api/ws", func(c *gin.Context) {
