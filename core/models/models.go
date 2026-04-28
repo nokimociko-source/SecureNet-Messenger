@@ -133,9 +133,10 @@ type Media struct {
 
 // WebSocket message types
 type WSMessage struct {
-	Type      string      `json:"type"` // message, status, typing, presence
+	Type      string      `json:"type"` // message, status, typing, presence, call
 	ChatID    uuid.UUID   `json:"chatId,omitempty"`
 	SenderID  uuid.UUID   `json:"senderId,omitempty"`
+	TargetID  uuid.UUID   `json:"targetId,omitempty"`
 	Content   interface{} `json:"content,omitempty"`
 	Timestamp int64       `json:"timestamp"`
 }
