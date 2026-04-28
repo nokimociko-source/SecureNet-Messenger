@@ -116,49 +116,22 @@ func initApp() error {
 		return fmt.Errorf("JWT_PRIVATE_KEY or JWT_PUBLIC_KEY is missing")
 	}
 
-	// Ultimate resilient cleaner: keeps ONLY characters valid for base64
-	cleanB64 := func(s string) string {
-		// Remove PEM headers/footers first
-		s = strings.ReplaceAll(s, "-----BEGIN RSA PRIVATE KEY-----", "")
-		s = strings.ReplaceAll(s, "-----END RSA PRIVATE KEY-----", "")
-		s = strings.ReplaceAll(s, "-----BEGIN RSA PUBLIC KEY-----", "")
-		s = strings.ReplaceAll(s, "-----END RSA PUBLIC KEY-----", "")
-		
-		var b strings.Builder
-		for _, r := range s {
-			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '+' || r == '/' || r == '=' {
-				b.WriteRune(r)
-			}
-		}
-		return b.String()
+	// Load and parse JWT keys (directly as PEM strings)
+	privKeyPEM := os.Getenv("JWT_PRIVATE_KEY")
+	pubKeyPEM := os.Getenv("JWT_PUBLIC_KEY")
+	
+	if privKeyPEM == "" || pubKeyPEM == "" {
+		return fmt.Errorf("JWT_PRIVATE_KEY or JWT_PUBLIC_KEY is missing")
 	}
 
-	privKeyBytes, err := base64.StdEncoding.DecodeString(cleanB64(privKeyB64))
+	privKey, err := auth.ParseRSAPrivateKey(privKeyPEM)
 	if err != nil {
-		return fmt.Errorf("failed to base64-decode JWT_PRIVATE_KEY: %v (clean length: %d)", err, len(cleanB64(privKeyB64)))
+		return fmt.Errorf("failed to parse JWT_PRIVATE_KEY: %v", err)
 	}
 
-	pubKeyBytes, err := base64.StdEncoding.DecodeString(cleanB64(pubKeyB64))
+	pubKey, err := auth.ParseRSAPublicKey(pubKeyPEM)
 	if err != nil {
-		return fmt.Errorf("failed to base64-decode JWT_PUBLIC_KEY: %v (clean length: %d)", err, len(cleanB64(pubKeyB64)))
-	}
-
-	privKey, err := auth.ParseRSAPrivateKey(string(privKeyBytes))
-	if err != nil {
-		// Fallback: maybe it's not base64-encoded PEM, but raw PEM?
-		privKey, err = auth.ParseRSAPrivateKey(privKeyB64)
-		if err != nil {
-			return fmt.Errorf("failed to parse JWT_PRIVATE_KEY: %v", err)
-		}
-	}
-
-	pubKey, err := auth.ParseRSAPublicKey(string(pubKeyBytes))
-	if err != nil {
-		// Fallback: maybe it's not base64-encoded PEM, but raw PEM?
-		pubKey, err = auth.ParseRSAPublicKey(pubKeyB64)
-		if err != nil {
-			return fmt.Errorf("failed to parse JWT_PUBLIC_KEY: %v", err)
-		}
+		return fmt.Errorf("failed to parse JWT_PUBLIC_KEY: %v", err)
 	}
 
 	// Main API routes
