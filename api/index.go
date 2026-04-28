@@ -121,8 +121,6 @@ func initApp() error {
 		c.JSON(200, gin.H{"ticket": ticket})
 	}
 
-	newRouter.POST("/api/ws-ticket", wsTicketHandler)
-
 	// Main API routes
 	api.SetupRoutes(newRouter, dbConn, newHub, newNotifSvc)
 
