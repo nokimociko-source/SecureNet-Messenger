@@ -8,6 +8,7 @@ import (
 var databaseURLKeys = []string{
 	"DATABASE_URL",
 	"POSTGRES_URL",
+	"POSTGRES_URL_NON_POOLING",
 	"POSTGRES_PRISMA_URL",
 	"SUPABASE_DB_URL",
 	"DB_URL",
@@ -72,4 +73,10 @@ func lookupEnvValue(key string) (string, bool) {
 	}
 
 	return "", false
+}
+
+func DatabaseURLCandidateKeys() []string {
+	keys := make([]string, len(databaseURLKeys))
+	copy(keys, databaseURLKeys)
+	return keys
 }

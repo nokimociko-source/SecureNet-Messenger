@@ -35,7 +35,7 @@ func initApp() error {
 	// Load configuration
 	cfg := config.Load()
 	if cfg.DatabaseURL == "" {
-		return fmt.Errorf("database url is not set; checked keys: DATABASE_URL, POSTGRES_URL, POSTGRES_PRISMA_URL, SUPABASE_DB_URL, DB_URL")
+		return fmt.Errorf("database url is not set; checked keys: %s; available keys: %s", strings.Join(config.DatabaseURLCandidateKeys(), ", "), strings.Join(discoveredDatabaseEnvKeys(), ", "))
 	}
 
 	log.Printf("Database URL source: %s", cfg.DatabaseURLSource)
@@ -161,6 +161,35 @@ func redactURL(raw string) string {
 	return parsed.String()
 }
 
+func discoveredDatabaseEnvKeys() []string {
+	candidates := config.DatabaseURLCandidateKeys()
+	discovered := make([]string, 0, len(candidates))
+	for _, key := range candidates {
+		if value, ok := os.LookupEnv(key); ok && strings.TrimSpace(value) != "" {
+			discovered = append(discovered, key)
+		}
+	}
+	if len(discovered) == 0 {
+		for _, raw := range os.Environ() {
+			envKey, envValue, found := strings.Cut(raw, "=")
+			if !found || strings.TrimSpace(envValue) == "" {
+				continue
+			}
+			trimmed := strings.TrimSpace(envKey)
+			for _, key := range candidates {
+				if strings.EqualFold(trimmed, key) {
+					discovered = append(discovered, envKey)
+					break
+				}
+			}
+		}
+	}
+	if len(discovered) == 0 {
+		return []string{"<none>"}
+	}
+	return discovered
+}
+
 // Handler is the entry point for Vercel
 func Handler(w http.ResponseWriter, r *http.Request) {
 	if router == nil {
@@ -179,9 +208,9 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	if router == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(500)
-		initErr := "Server initialization failed. Check database environment variables in Vercel settings."
-		if lastInitErr != nil {
-			initErr = fmt.Sprintf("Server initialization failed: %s", lastInitErr.Error())
+		initErr := "Server initialization failed. Check DATABASE_URL and related DB variables in Vercel settings."
+		if lastInitErr != nil && strings.Contains(strings.ToLower(lastInitErr.Error()), "database url is not set") {
+			initErr = "Server initialization failed: database url is not set in runtime environment."
 		}
 		w.Write([]byte(fmt.Sprintf(`{"error":%q}`, initErr)))
 		return
