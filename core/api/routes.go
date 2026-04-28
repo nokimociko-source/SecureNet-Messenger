@@ -167,7 +167,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			}
 
 			// Validate the temp token
-			claims, err := auth.ValidateToken(req.Token, cfg.JWTSecret)
+			claims, err := auth.ValidateToken(req.Token, publicKey)
 			if err != nil {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid session"})
 				return
