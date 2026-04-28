@@ -26,21 +26,36 @@ func Load() *Config {
 }
 
 func mustGetEnv(key string) string {
-	value, ok := os.LookupEnv(key)
+	value, ok := lookupEnvValue(key)
 	if ok {
-		return strings.TrimSpace(value)
+		return value
 	}
 	return ""
 }
 
 func getEnv(key, defaultValue string) string {
-	value, ok := os.LookupEnv(key)
-	if !ok {
+	value, ok := lookupEnvValue(key)
+	if !ok || value == "" {
 		return defaultValue
 	}
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return defaultValue
+	return value
+}
+
+func lookupEnvValue(key string) (string, bool) {
+	if value, ok := os.LookupEnv(key); ok {
+		return strings.TrimSpace(value), true
 	}
-	return trimmed
+
+	for _, raw := range os.Environ() {
+		envKey, envValue, found := strings.Cut(raw, "=")
+		if !found {
+			continue
+		}
+		if strings.TrimSpace(envKey) != key {
+			continue
+		}
+		return strings.TrimSpace(envValue), true
+	}
+
+	return "", false
 }
