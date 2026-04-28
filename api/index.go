@@ -26,6 +26,7 @@ var (
 	database    *sql.DB
 	hub         *websocket.Hub
 	notifSvc    *services.NotificationService
+	pusherSvc   *services.PusherService
 	lastInitErr error
 	initMu      sync.Mutex
 )
@@ -53,10 +54,11 @@ func initApp() error {
 
 	// Initialize services
 	newNotifSvc := services.NewNotificationService(dbConn)
+	newPusherSvc := services.NewPusherService()
 	chatRepo := postgres.NewChatRepo(dbConn)
 
-	// Setup WebSocket hub (Logic compatibility)
-	newHub := websocket.NewHub(chatRepo, newNotifSvc)
+	// Setup WebSocket hub (Logic compatibility + Pusher fallback)
+	newHub := websocket.NewHub(chatRepo, newNotifSvc, newPusherSvc)
 	go newHub.Run()
 
 	// Setup Gin
@@ -116,6 +118,7 @@ func initApp() error {
 
 	database = dbConn
 	notifSvc = newNotifSvc
+	pusherSvc = newPusherSvc
 	hub = newHub
 	router = newRouter
 	return nil

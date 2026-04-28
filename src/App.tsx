@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import Pusher from 'pusher-js';
 import { App as CapacitorApp } from '@capacitor/app';
 import toast, { Toaster } from 'react-hot-toast';
 // import * as crypto from './crypto/webcrypto'; // Removed for bundle optimization
@@ -42,6 +43,7 @@ export default function App() {
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const pusherRef = useRef<Pusher | null>(null);
   const [contacts, setContacts] = useState<User[]>([]);
 
   const [auditLog, setAuditLog] = useState<storage.AuditLogEntry[]>([]);
@@ -120,6 +122,98 @@ export default function App() {
     return outputArray;
   };
 
+  const sendSignal = async (data: any) => {
+    // 1. Try WebSocket if open
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(data));
+      return true;
+    }
+
+    // 2. Fallback to API signal (Pusher)
+    try {
+      const res = await apiRequest('/signal', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      return res.ok;
+    } catch (e) {
+      console.error('❌ Failed to send signal:', e);
+      return false;
+    }
+  };
+
+  const handleIncomingWSEvent = (data: any) => {
+    if (data.type === 'presence') {
+      setOnlineUsers(data.content?.onlineUsers || []);
+      return;
+    }
+    if (data.type === 'message') {
+      const msg = data.content;
+      setMessages(prev => {
+        if (prev.some(p => p.id === msg.id)) return prev;
+        const filtered = prev.filter(p =>
+          !(p.status === 'sending' && p.content === msg.content && p.senderId === msg.senderId)
+        );
+        const API_BASE_URL = localStorage.getItem('custom_api_url') || '/api';
+        return [...filtered, {
+          id: msg.id,
+          sessionId: msg.chatId,
+          senderId: msg.senderId,
+          senderName: msg.username || 'User',
+          content: msg.content,
+          timestamp: msg.timestamp * 1000,
+          type: (msg.type || 'text').trim() as any,
+          status: msg.status || 'sent',
+          mediaId: msg.mediaId || msg.media_id,
+          fileUrl: (msg.mediaId || msg.media_id)
+            ? `${API_BASE_URL}/media/${msg.mediaId || msg.media_id}`
+            : undefined,
+          encrypted: true
+        }];
+      });
+    }
+
+    if (data.type === 'call') {
+      const { subType, callType } = data.content;
+      if (subType === 'invite') {
+        // Find sender name from contacts or sessions
+        const senderName = sessions.find(s => s.contactId === data.senderId)?.contactName ||
+          contacts.find(c => c.id === data.senderId)?.username ||
+          'Неизвестный';
+
+        setCallData({
+          isOpen: true,
+          isIncoming: true,
+          callType: callType || 'audio',
+          targetUser: { id: data.senderId, username: senderName }
+        });
+      } else {
+        // Relay signal to CallView component
+        window.dispatchEvent(new CustomEvent('securenet-call-signal', {
+          detail: { ...data.content, senderId: data.senderId }
+        }));
+      }
+    }
+  };
+
+  const initPusher = (userId: string) => {
+    if (pusherRef.current) return;
+
+    const pusher = new Pusher('6c40eb129881d9bb18cf', {
+      cluster: 'mt1',
+      forceTLS: true
+    });
+
+    const channel = pusher.subscribe(`user-${userId}`);
+    channel.bind('ws-event', (data: any) => {
+      console.log('📡 Pusher Event received:', data);
+      handleIncomingWSEvent(data);
+    });
+
+    pusherRef.current = pusher;
+    console.log('⚡️ Pusher Connected');
+  };
+
   const initWebSocket = async (token: string) => {
     // Prevent multiple concurrent connection attempts
     if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
@@ -181,56 +275,7 @@ export default function App() {
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === 'presence') {
-            setOnlineUsers(data.content?.onlineUsers || []);
-            return;
-          }
-          if (data.type === 'message') {
-            const msg = data.content;
-            setMessages(prev => {
-              if (prev.some(p => p.id === msg.id)) return prev;
-              const filtered = prev.filter(p =>
-                !(p.status === 'sending' && p.content === msg.content && p.senderId === msg.senderId)
-              );
-              return [...filtered, {
-                id: msg.id,
-                sessionId: msg.chatId,
-                senderId: msg.senderId,
-                senderName: msg.username || 'User',
-                content: msg.content,
-                timestamp: msg.timestamp * 1000,
-                type: (msg.type || 'text').trim() as any,
-                status: msg.status || 'sent',
-                mediaId: msg.mediaId || msg.media_id,
-                fileUrl: (msg.mediaId || msg.media_id)
-                  ? `${API_BASE_URL}/media/${msg.mediaId || msg.media_id}`
-                  : undefined,
-                encrypted: true
-              }];
-            });
-          }
-
-          if (data.type === 'call') {
-            const { subType, callType } = data.content;
-            if (subType === 'invite') {
-              // Find sender name from contacts or sessions
-              const senderName = sessions.find(s => s.contactId === data.senderId)?.contactName ||
-                contacts.find(c => c.id === data.senderId)?.username ||
-                'Неизвестный';
-
-              setCallData({
-                isOpen: true,
-                isIncoming: true,
-                callType: callType || 'audio',
-                targetUser: { id: data.senderId, username: senderName }
-              });
-            } else {
-              // Relay signal to CallView component
-              window.dispatchEvent(new CustomEvent('securenet-call-signal', {
-                detail: { ...data.content, senderId: data.senderId }
-              }));
-            }
-          }
+          handleIncomingWSEvent(data);
         } catch (e) { console.error('Parse error', e); }
       };
 
@@ -388,6 +433,7 @@ export default function App() {
         setCurrentView('messenger');
 
         initWebSocket(storedToken);
+        initPusher(user.id);
         setTimeout(() => subscribeToPush(), 2000);
 
         const [localSessions, localContacts, localLogs] = await Promise.all([
@@ -457,6 +503,10 @@ export default function App() {
         wsRef.current.onclose = null;
         wsRef.current.close();
         wsRef.current = null;
+      }
+      if (pusherRef.current) {
+        pusherRef.current.disconnect();
+        pusherRef.current = null;
       }
     };
   }, []);
@@ -551,8 +601,10 @@ export default function App() {
         const storedUser = localStorage.getItem('currentUser');
         const storedToken = localStorage.getItem('token');
         if (storedUser && storedToken) {
-          setCurrentUser(JSON.parse(storedUser));
+          const user = JSON.parse(storedUser);
+          setCurrentUser(user);
           initWebSocket(storedToken);
+          initPusher(user.id);
           setCurrentView('messenger');
           fetchSessions();
           toast.success('Вход выполнен!');
@@ -570,8 +622,10 @@ export default function App() {
       const storedUser = localStorage.getItem('currentUser');
       const storedToken = localStorage.getItem('token');
       if (storedUser && storedToken) {
-        setCurrentUser(JSON.parse(storedUser));
+        const user = JSON.parse(storedUser);
+        setCurrentUser(user);
         initWebSocket(storedToken);
+        initPusher(user.id);
         setCurrentView('messenger');
         fetchSessions();
         toast.success('Вход выполнен!');
@@ -666,16 +720,18 @@ export default function App() {
   };
 
   const sendMessage = async (content: string, sessionId: string) => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      toast.error('Нет подключения к серверу');
-      return;
-    }
-    wsRef.current.send(JSON.stringify({
+    const success = await sendSignal({
       type: 'message',
       chatId: sessionId,
       content: content,
       msg_type: 'text'
-    }));
+    });
+
+    if (!success) {
+      toast.error('Не удалось отправить сообщение');
+      return;
+    }
+
     setMessages(prev => [...prev, {
       id: Math.random().toString(),
       sessionId: sessionId,
@@ -709,14 +765,14 @@ export default function App() {
       else if (file.type.startsWith('audio/')) msgType = 'audio';
       else if (file.type.startsWith('video/')) msgType = 'video';
 
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
+      if (response.ok) {
+        await sendSignal({
           type: 'message',
           chatId: activeSession.id,
           content: msgType === 'text' || msgType === 'image' || msgType === 'sticker' ? '' : file.name,
           msg_type: msgType,
           media_id: media.id
-        }));
+        });
       }
       toast.success('Файл отправлен');
       fetchMessages(activeSession.id);
@@ -1028,7 +1084,10 @@ export default function App() {
             isIncoming={callData.isIncoming}
             callType={callData.callType}
             targetUser={callData.targetUser}
-            ws={wsRef.current}
+            ws={null}
+            sendSignal={sendSignal}
+            onAccept={() => {}} 
+            onReject={() => {}}
             onClose={() => setCallData(prev => ({ ...prev, isOpen: false }))}
           />
         )}

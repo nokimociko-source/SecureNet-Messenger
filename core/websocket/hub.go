@@ -67,6 +67,9 @@ type Hub struct {
 	NotifSvc   interface {
 		SendPush(userID uuid.UUID, title, body string, data map[string]interface{})
 	}
+	PusherSvc interface {
+		Trigger(channel string, event string, data interface{}) error
+	}
 	tickets    map[string]ticketInfo
 }
 
@@ -78,6 +81,8 @@ type ticketInfo struct {
 
 func NewHub(chatRepo repository.ChatRepository, notifSvc interface {
 	SendPush(userID uuid.UUID, title, body string, data map[string]interface{})
+}, pusherSvc interface {
+	Trigger(channel string, event string, data interface{}) error
 }) *Hub {
 	return &Hub{
 		Clients:    make(map[*Client]bool),
@@ -87,6 +92,7 @@ func NewHub(chatRepo repository.ChatRepository, notifSvc interface {
 		UserMap:    make(map[uuid.UUID]*Client),
 		ChatRepo:   chatRepo,
 		NotifSvc:   notifSvc,
+		PusherSvc:  pusherSvc,
 		tickets:    make(map[string]ticketInfo),
 	}
 }
@@ -185,6 +191,12 @@ func (h *Hub) SendToUser(userID uuid.UUID, msg *models.WSMessage) {
 			"chatId": msg.ChatID,
 			"type":   "NEW_MESSAGE", // Align with sw.js expectation
 		})
+	}
+
+	// Try to send via Pusher if available
+	if h.PusherSvc != nil {
+		channel := "user-" + userID.String()
+		h.PusherSvc.Trigger(channel, "ws-event", msg)
 	}
 
 	if !ok {

@@ -9,6 +9,7 @@ interface CallViewProps {
   isIncoming: boolean;
   callType: 'audio' | 'video';
   ws: WebSocket | null;
+  sendSignal?: (data: any) => Promise<boolean>;
   onAccept?: () => void;
   onReject?: () => void;
 }
@@ -20,6 +21,7 @@ export default function CallView({
   isIncoming, 
   callType, 
   ws,
+  sendSignal,
   onAccept,
   onReject
 }: CallViewProps) {
@@ -101,12 +103,15 @@ export default function CallView({
       initPeerConnection();
       
       // Send invite
-      ws?.send(JSON.stringify({
+      const inviteData = {
         type: 'call',
         subType: 'invite',
         targetId: targetUser.id,
         callType: stream.getVideoTracks().length > 0 ? 'video' : 'audio'
-      }));
+      };
+
+      if (sendSignal) await sendSignal(inviteData);
+      else ws?.send(JSON.stringify(inviteData));
     } catch (err: any) {
       console.error('Failed to get media', err);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
@@ -130,12 +135,14 @@ export default function CallView({
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        ws?.send(JSON.stringify({
+        const candidateData = {
           type: 'call',
           subType: 'candidate',
           targetId: targetUser.id,
           candidate: event.candidate
-        }));
+        };
+        if (sendSignal) sendSignal(candidateData);
+        else ws?.send(JSON.stringify(candidateData));
       }
     };
 
@@ -179,11 +186,14 @@ export default function CallView({
 
       initPeerConnection();
       
-      ws?.send(JSON.stringify({
+      const acceptData = {
         type: 'call',
         subType: 'accept',
         targetId: targetUser.id
-      }));
+      };
+      if (sendSignal) await sendSignal(acceptData);
+      else ws?.send(JSON.stringify(acceptData));
+
       onAccept?.();
     } catch (err: any) {
       console.error('Failed to get media on accept', err);
@@ -193,21 +203,26 @@ export default function CallView({
   };
 
   const handleReject = () => {
-    ws?.send(JSON.stringify({
+    const rejectData = {
       type: 'call',
       subType: 'reject',
       targetId: targetUser.id
-    }));
+    };
+    if (sendSignal) sendSignal(rejectData);
+    else ws?.send(JSON.stringify(rejectData));
+    
     onReject?.();
     onClose();
   };
 
   const endCall = () => {
-    ws?.send(JSON.stringify({
+    const hangupData = {
       type: 'call',
       subType: 'hangup',
       targetId: targetUser.id
-    }));
+    };
+    if (sendSignal) sendSignal(hangupData);
+    else ws?.send(JSON.stringify(hangupData));
     
     localStream.current?.getTracks().forEach(track => track.stop());
     peerConnection.current?.close();
@@ -272,12 +287,14 @@ export default function CallView({
     if (!peerConnection.current) return;
     const offer = await peerConnection.current.createOffer();
     await peerConnection.current.setLocalDescription(offer);
-    ws?.send(JSON.stringify({
+    const offerData = {
       type: 'call',
       subType: 'offer',
       targetId: targetUser.id,
       offer
-    }));
+    };
+    if (sendSignal) await sendSignal(offerData);
+    else ws?.send(JSON.stringify(offerData));
   };
 
   const handleOffer = async (offer: RTCSessionDescriptionInit) => {
@@ -285,12 +302,14 @@ export default function CallView({
     await peerConnection.current.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await peerConnection.current.createAnswer();
     await peerConnection.current.setLocalDescription(answer);
-    ws?.send(JSON.stringify({
+    const answerData = {
       type: 'call',
       subType: 'answer',
       targetId: targetUser.id,
       answer
-    }));
+    };
+    if (sendSignal) await sendSignal(answerData);
+    else ws?.send(JSON.stringify(answerData));
   };
 
   const handleAnswer = async (answer: RTCSessionDescriptionInit) => {
