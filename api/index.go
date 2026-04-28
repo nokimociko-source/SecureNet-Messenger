@@ -116,33 +116,49 @@ func initApp() error {
 		return fmt.Errorf("JWT_PRIVATE_KEY or JWT_PUBLIC_KEY is missing")
 	}
 
-	// Helper to strip all whitespace and illegal chars from b64
+	// Ultimate resilient cleaner: keeps ONLY characters valid for base64
 	cleanB64 := func(s string) string {
-		s = strings.ReplaceAll(s, "\n", "")
-		s = strings.ReplaceAll(s, "\r", "")
-		s = strings.ReplaceAll(s, "\t", "")
-		s = strings.ReplaceAll(s, " ", "")
-		return strings.TrimSpace(s)
+		// Remove PEM headers/footers first
+		s = strings.ReplaceAll(s, "-----BEGIN RSA PRIVATE KEY-----", "")
+		s = strings.ReplaceAll(s, "-----END RSA PRIVATE KEY-----", "")
+		s = strings.ReplaceAll(s, "-----BEGIN RSA PUBLIC KEY-----", "")
+		s = strings.ReplaceAll(s, "-----END RSA PUBLIC KEY-----", "")
+		
+		var b strings.Builder
+		for _, r := range s {
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '+' || r == '/' || r == '=' {
+				b.WriteRune(r)
+			}
+		}
+		return b.String()
 	}
 
-	privKeyPEM, err := base64.StdEncoding.DecodeString(cleanB64(privKeyB64))
+	privKeyBytes, err := base64.StdEncoding.DecodeString(cleanB64(privKeyB64))
 	if err != nil {
-		return fmt.Errorf("failed to base64-decode JWT_PRIVATE_KEY: %v", err)
+		return fmt.Errorf("failed to base64-decode JWT_PRIVATE_KEY: %v (clean length: %d)", err, len(cleanB64(privKeyB64)))
 	}
 
-	pubKeyPEM, err := base64.StdEncoding.DecodeString(cleanB64(pubKeyB64))
+	pubKeyBytes, err := base64.StdEncoding.DecodeString(cleanB64(pubKeyB64))
 	if err != nil {
-		return fmt.Errorf("failed to base64-decode JWT_PUBLIC_KEY: %v", err)
+		return fmt.Errorf("failed to base64-decode JWT_PUBLIC_KEY: %v (clean length: %d)", err, len(cleanB64(pubKeyB64)))
 	}
 
-	privKey, err := auth.ParseRSAPrivateKey(string(privKeyPEM))
+	privKey, err := auth.ParseRSAPrivateKey(string(privKeyBytes))
 	if err != nil {
-		return fmt.Errorf("failed to parse JWT_PRIVATE_KEY: %v", err)
+		// Fallback: maybe it's not base64-encoded PEM, but raw PEM?
+		privKey, err = auth.ParseRSAPrivateKey(privKeyB64)
+		if err != nil {
+			return fmt.Errorf("failed to parse JWT_PRIVATE_KEY: %v", err)
+		}
 	}
 
-	pubKey, err := auth.ParseRSAPublicKey(string(pubKeyPEM))
+	pubKey, err := auth.ParseRSAPublicKey(string(pubKeyBytes))
 	if err != nil {
-		return fmt.Errorf("failed to parse JWT_PUBLIC_KEY: %v", err)
+		// Fallback: maybe it's not base64-encoded PEM, but raw PEM?
+		pubKey, err = auth.ParseRSAPublicKey(pubKeyB64)
+		if err != nil {
+			return fmt.Errorf("failed to parse JWT_PUBLIC_KEY: %v", err)
+		}
 	}
 
 	// Main API routes
