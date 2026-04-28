@@ -4,7 +4,7 @@ import { ru } from 'date-fns/locale';
 import { AlertTriangle, Send, Heart, MessageCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
-import * as crypto from '../crypto/webcrypto';
+// import * as crypto from '../crypto/webcrypto'; // Removed for bundle optimization
 
 interface Comment {
   id: string;
@@ -52,6 +52,7 @@ export const SocialPost: React.FC<PostProps> = ({ post: initialPost, onReport, o
         return;
       }
       try {
+        const crypto = await import('../crypto/webcrypto');
         const pubKey = await crypto.importECDHPublicKey(JSON.parse(post.authorPublicKey));
         const sig = crypto.base64ToArray(post.signature);
         const data = new TextEncoder().encode(post.content);

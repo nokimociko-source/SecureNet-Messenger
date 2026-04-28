@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
 import toast, { Toaster } from 'react-hot-toast';
-import * as crypto from './crypto/webcrypto';
+// import * as crypto from './crypto/webcrypto'; // Removed for bundle optimization
 import * as storage from './crypto/storage';
 import ChatView from './components/ChatView';
 import SettingsView from './components/SettingsView';
@@ -519,6 +519,7 @@ export default function App() {
     const identity = await storage.getIdentityKeyPair('primary', masterKey);
     if (!identity?.privateKeys?.signing) throw new Error('Signing key not found');
 
+    const crypto = await import('./crypto/webcrypto');
     const encoder = new TextEncoder();
     const encoded = encoder.encode(typeof data === 'string' ? data : JSON.stringify(data));
     const signature = await crypto.signECDSA(encoded, identity.privateKeys.signing);
@@ -539,6 +540,7 @@ export default function App() {
 
       if (result.success) {
         // Derive master key for storage encryption
+        const crypto = await import('./crypto/webcrypto');
         const identity = await storage.getIdentityKeyPair();
         if (identity?.keyPair.salt) {
           const salt = crypto.base64ToArray(identity.keyPair.salt);
@@ -581,6 +583,7 @@ export default function App() {
 
   const handleRegister = async (name: string, email: string, phone: string, pass: string) => {
     try {
+      const crypto = await import('./crypto/webcrypto');
       const salt = crypto.randomBytes(16);
       const encryptionKey = await crypto.deriveKeyFromPassword(pass, salt);
 
@@ -616,7 +619,7 @@ export default function App() {
         signPublicKey: JSON.stringify(idPubJwk),
         signPrivateKey: 'ENCRYPTED',
         signPrivateKeyIv: 'IV',
-        salt: crypto.arrayToBase64(salt),
+        salt: (await import('./crypto/webcrypto')).arrayToBase64(salt),
         createdAt: Date.now(),
         lastRotated: Date.now()
       }, encryptionKey, {

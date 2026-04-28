@@ -4,7 +4,7 @@
  */
 
 import { useState, useRef } from 'react';
-import * as crypto from '../crypto/webcrypto';
+// import * as crypto from '../crypto/webcrypto'; // Removed for bundle optimization
 
 interface MediaUploadProps {
   chatId: string;
@@ -59,6 +59,7 @@ export function MediaUpload({ chatId, onUploadComplete, apiRequest }: MediaUploa
     try {
       // ✅ Fix #6: Encrypt file before upload (Zero-Knowledge)
       console.log('🔐 Encrypting media file...');
+      const crypto = await import('../crypto/webcrypto');
       const fileBuffer = await file.arrayBuffer();
       const aesKey = await crypto.generateAESKey();
       const { ciphertext, iv } = await crypto.encryptAES(new Uint8Array(fileBuffer), aesKey);
@@ -89,6 +90,7 @@ export function MediaUpload({ chatId, onUploadComplete, apiRequest }: MediaUploa
       }
 
       const media = await response.json();
+      const crypto = await import('../crypto/webcrypto');
       const keyJwk = await crypto.exportPublicKey(aesKey);
       
       setProgress(100);
@@ -100,7 +102,7 @@ export function MediaUpload({ chatId, onUploadComplete, apiRequest }: MediaUploa
         mimeType: file.type,
         url: `/api/media/${media.id}?token=${localStorage.getItem('token')}`,
         encryptionKey: keyJwk,
-        iv: crypto.arrayToBase64(iv),
+        iv: (await import('../crypto/webcrypto')).arrayToBase64(iv),
       });
 
       // Reset after brief delay
@@ -301,6 +303,7 @@ export function MediaPreview({ media }: { media: UploadedMedia }) {
         const response = await fetch(media.url);
         const encryptedData = await response.arrayBuffer();
         
+        const crypto = await import('../crypto/webcrypto');
         const aesKey = await crypto.importAESKey(media.encryptionKey!);
         const iv = crypto.base64ToArray(media.iv!);
         

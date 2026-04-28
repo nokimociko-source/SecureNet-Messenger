@@ -49,4 +49,16 @@ export default defineConfig({
       }
     }
   },
+  build: {
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-utils': ['date-fns', 'lucide-react', 'react-hot-toast'],
+          'crypto-lib': ['./src/crypto/webcrypto.ts']
+        }
+      }
+    }
+  }
 });

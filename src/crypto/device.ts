@@ -1,4 +1,4 @@
-import { hashSHA256, arrayToHex } from './webcrypto';
+// import { hashSHA256, arrayToHex } from './webcrypto'; // Removed static import for bundle optimization
 import { Device } from '@capacitor/device';
 
 export interface DeviceInfo {
@@ -54,6 +54,8 @@ export async function generateDeviceFingerprint(): Promise<DeviceInfo> {
   // Hash everything
   const combined = components.join('|');
   const data = new TextEncoder().encode(combined);
+  
+  const { hashSHA256, arrayToHex } = await import('./webcrypto');
   const hash = await hashSHA256(data);
   const fingerprint = arrayToHex(hash);
 
