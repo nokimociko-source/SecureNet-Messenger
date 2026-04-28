@@ -123,8 +123,9 @@ export default function App() {
   };
 
   const sendSignal = async (data: any) => {
-    // 1. Try WebSocket if open
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    // 1. Try WebSocket if open (Only in dev or if explicitly enabled)
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isDev && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(data));
       return true;
     }
@@ -215,6 +216,13 @@ export default function App() {
   };
 
   const initWebSocket = async (token: string) => {
+    // Only connect WebSocket in development (localhost)
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (!isDev) {
+      console.log('ℹ️ WebSocket disabled in production, using Pusher fallback.');
+      return;
+    }
+
     // Prevent multiple concurrent connection attempts
     if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
       return;

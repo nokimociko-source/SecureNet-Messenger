@@ -111,7 +111,7 @@ func Migrate(db *sql.DB) error {
 			fingerprint VARCHAR(128) NOT NULL,
 			platform VARCHAR(20) NOT NULL,
 			user_agent TEXT,
-			ip_address INET,
+			ip_address TEXT,
 			trusted BOOLEAN DEFAULT false,
 			last_used_at TIMESTAMP DEFAULT NOW(),
 			created_at TIMESTAMP DEFAULT NOW(),
@@ -246,6 +246,7 @@ func Migrate(db *sql.DB) error {
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_id BIGINT UNIQUE`,
 		`ALTER TABLE media ALTER COLUMN chat_id DROP NOT NULL`,
 		`ALTER TABLE posts ADD COLUMN IF NOT EXISTS signature TEXT`,
+		`ALTER TABLE devices ALTER COLUMN ip_address TYPE TEXT`,
 		`ALTER TABLE users ADD CONSTRAINT IF NOT EXISTS users_email_unique UNIQUE (email)`,
 	}
 
