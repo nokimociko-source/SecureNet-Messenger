@@ -5,32 +5,46 @@ import (
 	"strings"
 )
 
+var databaseURLKeys = []string{
+	"DATABASE_URL",
+	"POSTGRES_URL",
+	"POSTGRES_PRISMA_URL",
+	"SUPABASE_DB_URL",
+	"DB_URL",
+}
+
 type Config struct {
-	DatabaseURL      string
-	Port             string
-	JWTSecret        string
-	VAPIDPublicKey   string
-	VAPIDPrivateKey  string
-	TelegramBotToken string
+	DatabaseURL       string
+	DatabaseURLSource string
+	Port              string
+	JWTSecret         string
+	VAPIDPublicKey    string
+	VAPIDPrivateKey   string
+	TelegramBotToken  string
 }
 
 func Load() *Config {
+	databaseURL, databaseURLSource := mustGetEnvAny(databaseURLKeys...)
+
 	return &Config{
-		DatabaseURL:      mustGetEnv("DATABASE_URL"),
-		Port:             getEnv("PORT", "8080"),
-		JWTSecret:        getEnv("JWT_SECRET", "DANGER_INSECURE_DEFAULT_SECRET_MUST_CHANGE_IN_PRODUCTION"),
-		VAPIDPublicKey:   getEnv("VAPID_PUBLIC_KEY", ""),
-		VAPIDPrivateKey:  getEnv("VAPID_PRIVATE_KEY", ""),
-		TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
+		DatabaseURL:       databaseURL,
+		DatabaseURLSource: databaseURLSource,
+		Port:              getEnv("PORT", "8080"),
+		JWTSecret:         getEnv("JWT_SECRET", "DANGER_INSECURE_DEFAULT_SECRET_MUST_CHANGE_IN_PRODUCTION"),
+		VAPIDPublicKey:    getEnv("VAPID_PUBLIC_KEY", ""),
+		VAPIDPrivateKey:   getEnv("VAPID_PRIVATE_KEY", ""),
+		TelegramBotToken:  getEnv("TELEGRAM_BOT_TOKEN", ""),
 	}
 }
 
-func mustGetEnv(key string) string {
-	value, ok := lookupEnvValue(key)
-	if ok {
-		return value
+func mustGetEnvAny(keys ...string) (string, string) {
+	for _, key := range keys {
+		value, ok := lookupEnvValue(key)
+		if ok && value != "" {
+			return value, key
+		}
 	}
-	return ""
+	return "", ""
 }
 
 func getEnv(key, defaultValue string) string {
@@ -51,7 +65,7 @@ func lookupEnvValue(key string) (string, bool) {
 		if !found {
 			continue
 		}
-		if strings.TrimSpace(envKey) != key {
+		if !strings.EqualFold(strings.TrimSpace(envKey), key) {
 			continue
 		}
 		return strings.TrimSpace(envValue), true

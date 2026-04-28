@@ -23,20 +23,22 @@ import (
 )
 
 var (
-	router   *gin.Engine
-	database *sql.DB
-	hub      *websocket.Hub
-	notifSvc *services.NotificationService
-	initMu   sync.Mutex
+	router      *gin.Engine
+	database    *sql.DB
+	hub         *websocket.Hub
+	notifSvc    *services.NotificationService
+	lastInitErr error
+	initMu      sync.Mutex
 )
 
 func initApp() error {
 	// Load configuration
 	cfg := config.Load()
 	if cfg.DatabaseURL == "" {
-		return fmt.Errorf("DATABASE_URL is not set")
+		return fmt.Errorf("database url is not set; checked keys: DATABASE_URL, POSTGRES_URL, POSTGRES_PRISMA_URL, SUPABASE_DB_URL, DB_URL")
 	}
 
+	log.Printf("Database URL source: %s", cfg.DatabaseURLSource)
 	log.Printf("Connecting to DB: %s", redactURL(cfg.DatabaseURL))
 
 	// Initialize database
@@ -165,7 +167,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		initMu.Lock()
 		if router == nil {
 			if err := initApp(); err != nil {
+				lastInitErr = err
 				log.Printf("❌ Failed to initialize app: %v", err)
+			} else {
+				lastInitErr = nil
 			}
 		}
 		initMu.Unlock()
@@ -174,7 +179,11 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	if router == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(500)
-		w.Write([]byte(`{"error":"Server initialization failed. Check DATABASE_URL and other environment variables in Vercel settings."}`))
+		initErr := "Server initialization failed. Check database environment variables in Vercel settings."
+		if lastInitErr != nil {
+			initErr = fmt.Sprintf("Server initialization failed: %s", lastInitErr.Error())
+		}
+		w.Write([]byte(fmt.Sprintf(`{"error":%q}`, initErr)))
 		return
 	}
 	router.ServeHTTP(w, r)

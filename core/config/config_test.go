@@ -13,3 +13,15 @@ func TestLookupEnvValueFallsBackToTrimmedKey(t *testing.T) {
 		t.Fatalf("unexpected value: %q", got)
 	}
 }
+
+func TestMustGetEnvAnyUsesAliases(t *testing.T) {
+	t.Setenv("POSTGRES_URL", "postgres://alias.example:5432/app?sslmode=require")
+
+	got, source := mustGetEnvAny(databaseURLKeys...)
+	if got == "" {
+		t.Fatalf("expected database URL from aliases")
+	}
+	if source != "POSTGRES_URL" {
+		t.Fatalf("unexpected source key: %s", source)
+	}
+}
