@@ -254,6 +254,11 @@ func Migrate(db *sql.DB) error {
 			public_key TEXT NOT NULL,
 			created_at TIMESTAMP DEFAULT NOW()
 		)`,
+		`CREATE TABLE IF NOT EXISTS system_configs (
+			key VARCHAR(100) PRIMARY KEY,
+			value TEXT NOT NULL,
+			updated_at TIMESTAMP DEFAULT NOW()
+		)`,
 	}
 
 	fmt.Println("🚀 Running database migrations...")
