@@ -76,9 +76,30 @@ export default function ChatView({
     setSelectedMessage(null);
   };
 
+  const [securityAlert, setSecurityAlert] = useState<string | null>(null);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Key Transparency check
+  useEffect(() => {
+    if (session.isGroup) return; // For groups, we'd need more complex logic
+    
+    const contact = contacts.find(c => c.id === session.contactId);
+    if (!contact || !contact.publicKey) return;
+
+    const storageKey = `trust_key_${session.contactId}`;
+    const storedKey = localStorage.getItem(storageKey);
+
+    if (!storedKey) {
+      // First time seeing this key, trust on first use
+      localStorage.setItem(storageKey, contact.publicKey);
+    } else if (storedKey !== contact.publicKey) {
+      // Key mismatch detected!
+      setSecurityAlert(`Код безопасности для ${contact.name || session.contactName} изменился. Возможно, собеседник использует новое устройство или переустановил приложение. Если это не так, возможно ваше соединение скомпрометировано.`);
+    }
+  }, [session.contactId, contacts]);
 
   useEffect(() => {
     return () => {
@@ -304,7 +325,32 @@ export default function ChatView({
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-2 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] custom-scrollbar">
         <div className="max-w-3xl mx-auto space-y-4">
+          {securityAlert && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex gap-3 animate-message backdrop-blur-sm">
+              <div className="text-red-400 text-2xl">⚠️</div>
+              <div className="flex-1">
+                <h4 className="text-red-400 font-bold text-sm uppercase tracking-wider mb-1">Угроза безопасности</h4>
+                <p className="text-red-200/80 text-sm leading-relaxed">{securityAlert}</p>
+                <div className="mt-3 flex gap-2">
+                  <button onClick={() => {
+                    const contact = contacts.find(c => c.id === session.contactId);
+                    if (contact && contact.publicKey) {
+                      localStorage.setItem(`trust_key_${session.contactId}`, contact.publicKey);
+                      setSecurityAlert(null);
+                    }
+                  }} className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-bold rounded-lg transition-colors">
+                    Принять новый ключ
+                  </button>
+                  <button onClick={() => setSecurityAlert(null)} className="px-3 py-1.5 hover:bg-white/5 text-white/50 text-xs font-bold rounded-lg transition-colors">
+                    Скрыть
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {messages.map((message, idx) => {
+
             const isOwn = message.senderId === currentUser.id;
             const isNextSame = messages[idx + 1]?.senderId === message.senderId;
 

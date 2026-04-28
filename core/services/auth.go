@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"crypto/rsa"
 	"errors"
 	"time"
 
@@ -14,14 +15,14 @@ import (
 )
 
 type AuthService struct {
-	userRepo  repository.UserRepository
-	jwtSecret string
+	userRepo   repository.UserRepository
+	privateKey *rsa.PrivateKey
 }
 
-func NewAuthService(userRepo repository.UserRepository, jwtSecret string) *AuthService {
+func NewAuthService(userRepo repository.UserRepository, privateKey *rsa.PrivateKey) *AuthService {
 	return &AuthService{
-		userRepo:  userRepo,
-		jwtSecret: jwtSecret,
+		userRepo:   userRepo,
+		privateKey: privateKey,
 	}
 }
 
@@ -66,7 +67,7 @@ func (s *AuthService) Register(ctx context.Context, phone, email, username, pass
 		return nil, "", err
 	}
 
-	token, err := auth.GenerateToken(user.ID, user.Username, user.Role, s.jwtSecret)
+	token, err := auth.GenerateToken(user.ID, user.Username, user.Role, s.privateKey)
 	return user, token, err
 }
 

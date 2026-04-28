@@ -248,6 +248,12 @@ func Migrate(db *sql.DB) error {
 		`ALTER TABLE posts ADD COLUMN IF NOT EXISTS signature TEXT`,
 		`ALTER TABLE devices ALTER COLUMN ip_address TYPE TEXT`,
 		`ALTER TABLE users ADD CONSTRAINT IF NOT EXISTS users_email_unique UNIQUE (email)`,
+		`CREATE TABLE IF NOT EXISTS key_history (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			public_key TEXT NOT NULL,
+			created_at TIMESTAMP DEFAULT NOW()
+		)`,
 	}
 
 	fmt.Println("🚀 Running database migrations...")

@@ -65,6 +65,15 @@ func (r *UserRepo) Create(ctx context.Context, user *models.User) error {
 	if err != nil {
 		return fmt.Errorf("create user: %w", err)
 	}
+
+	// Key Transparency: record initial public key
+	if user.PublicKey != "" {
+		_, _ = r.db.ExecContext(ctx,
+			`INSERT INTO key_history (user_id, public_key) VALUES ($1, $2)`,
+			user.ID, user.PublicKey,
+		)
+	}
+
 	return nil
 }
 

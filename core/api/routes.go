@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/rsa"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -31,7 +32,7 @@ type updateInfo struct {
 	Notes   string `json:"notes"`
 }
 
-func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *services.NotificationService, pusherSvc *services.PusherService) {
+func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *services.NotificationService, pusherSvc *services.PusherService, privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) {
 	cfg := config.Load()
 	auditService := services.NewAuditService(db)
 
@@ -42,7 +43,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 	mediaRepo := postgres.NewMediaRepo(db)
 
 	// Initialize services
-	authSvc := services.NewAuthService(userRepo, cfg.JWTSecret)
+	authSvc := services.NewAuthService(userRepo, privateKey)
 	chatSvc := services.NewChatService(chatRepo, auditService)
 	deviceSvc := services.NewDeviceService(deviceRepo, auditService)
 	mediaSvc := services.NewMediaService(mediaRepo, auditService)
@@ -190,7 +191,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 		})
 
 		// 2FA Setup
-		authGroup.POST("/2fa/setup", authMiddleware(cfg.JWTSecret), func(c *gin.Context) {
+		authGroup.POST("/2fa/setup", authMiddleware(publicKey), func(c *gin.Context) {
 			userID := c.GetString("userId")
 			username := c.GetString("username")
 
@@ -212,7 +213,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			})
 		})
 
-		authGroup.POST("/2fa/enable", authMiddleware(cfg.JWTSecret), func(c *gin.Context) {
+		authGroup.POST("/2fa/enable", authMiddleware(publicKey), func(c *gin.Context) {
 			var req struct {
 				Code string `json:"code" binding:"required"`
 			}
@@ -236,7 +237,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			}
 		})
 
-		authGroup.POST("/2fa/disable", authMiddleware(cfg.JWTSecret), func(c *gin.Context) {
+		authGroup.POST("/2fa/disable", authMiddleware(publicKey), func(c *gin.Context) {
 			userID := c.GetString("userId")
 			userRepo.UpdateTOTP(c.Request.Context(), userID, "", false)
 			c.JSON(http.StatusOK, gin.H{"status": "disabled"})
@@ -246,7 +247,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			c.JSON(http.StatusOK, gin.H{"publicKey": cfg.VAPIDPublicKey})
 		})
 		
-		authGroup.POST("/pusher/auth", authMiddleware(cfg.JWTSecret), func(c *gin.Context) {
+		authGroup.POST("/pusher/auth", authMiddleware(publicKey), func(c *gin.Context) {
 			socketID := c.PostForm("socket_id")
 			channelName := c.PostForm("channel_name")
 			userID := c.GetString("userId")
@@ -268,7 +269,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			c.Data(http.StatusOK, "application/json", auth)
 		})
 
-		authGroup.POST("/push-subscription", authMiddleware(cfg.JWTSecret), func(c *gin.Context) {
+		authGroup.POST("/push-subscription", authMiddleware(publicKey), func(c *gin.Context) {
 			var sub models.PushSubscription
 			if err := c.ShouldBindJSON(&sub); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -331,7 +332,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 	})
 
 	authorized := r.Group("/api")
-	authorized.Use(authMiddleware(cfg.JWTSecret))
+	authorized.Use(authMiddleware(publicKey))
 	{
 		// WebSocket Ticket
 		authorized.POST("/ws-ticket", func(c *gin.Context) {
@@ -877,7 +878,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 
 // Helpers...
 
-func authMiddleware(secret string) gin.HandlerFunc {
+func authMiddleware(publicKey *rsa.PublicKey) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := ""
 		authHeader := c.GetHeader("Authorization")
@@ -895,7 +896,7 @@ func authMiddleware(secret string) gin.HandlerFunc {
 			return
 		}
 
-		claims, err := auth.ValidateToken(tokenString, secret)
+		claims, err := auth.ValidateToken(tokenString, publicKey)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			return

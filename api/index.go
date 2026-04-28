@@ -106,8 +106,26 @@ func initApp() error {
 		c.JSON(200, gin.H{"status": "ok", "server": "Vercel Serverless", "time": time.Now()})
 	})
 
+	// Load and parse JWT keys
+	privKeyStr := os.Getenv("JWT_PRIVATE_KEY")
+	pubKeyStr := os.Getenv("JWT_PUBLIC_KEY")
+	
+	if privKeyStr == "" || pubKeyStr == "" {
+		return fmt.Errorf("JWT_PRIVATE_KEY or JWT_PUBLIC_KEY is missing")
+	}
+
+	privKey, err := auth.ParseRSAPrivateKey(privKeyStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse JWT_PRIVATE_KEY: %v", err)
+	}
+
+	pubKey, err := auth.ParseRSAPublicKey(pubKeyStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse JWT_PUBLIC_KEY: %v", err)
+	}
+
 	// Main API routes
-	api.SetupRoutes(newRouter, dbConn, newHub, newNotifSvc, newPusherSvc)
+	api.SetupRoutes(newRouter, dbConn, newHub, newNotifSvc, newPusherSvc, privKey, pubKey)
 
 	// WebSocket fallback error
 	newRouter.GET("/api/ws", func(c *gin.Context) {
