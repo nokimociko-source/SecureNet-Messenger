@@ -43,5 +43,6 @@ func (s *PusherService) Authenticate(channelName, socketID string) ([]byte, erro
 	if s.client == nil {
 		return nil, nil
 	}
-	return s.client.AuthenticatePrivateChannel([]byte(channelName), socketID)
+	body := []byte("socket_id=" + socketID + "&channel_name=" + channelName)
+	return s.client.AuthenticatePrivateChannel(body)
 }

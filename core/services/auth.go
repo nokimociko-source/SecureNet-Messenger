@@ -81,6 +81,6 @@ func (s *AuthService) Login(ctx context.Context, phone, password string) (*model
 		return nil, "", errors.New("invalid credentials")
 	}
 
-	token, err := auth.GenerateToken(user.ID, user.Username, user.Role, s.jwtSecret)
+	token, err := auth.GenerateToken(user.ID, user.Username, user.Role, s.privateKey)
 	return user, token, err
 }
