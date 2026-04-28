@@ -2,8 +2,10 @@ package handler
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -21,53 +23,58 @@ import (
 )
 
 var (
-	router   *gin.Engine
-	database *sql.DB
-	hub      *websocket.Hub
-	notifSvc *services.NotificationService
-	once     sync.Once
+	router      *gin.Engine
+	database    *sql.DB
+	hub         *websocket.Hub
+	notifSvc    *services.NotificationService
+	lastInitErr error
+	initMu      sync.Mutex
 )
 
-func initApp() {
+func initApp() error {
 	// Load configuration
 	cfg := config.Load()
+	if cfg.DatabaseURL == "" {
+		return fmt.Errorf("database url is not set; checked keys: %s", strings.Join(config.DatabaseURLCandidates(), ", "))
+	}
+
+	log.Printf("Database URL source: %s", cfg.DatabaseURLSource)
+	log.Printf("Connecting to DB: %s", redactURL(cfg.DatabaseURL))
 
 	// Initialize database
-	var err error
-	database, err = db.Init(cfg.DatabaseURL)
+	dbConn, err := db.Init(cfg.DatabaseURL)
 	if err != nil {
-		log.Printf("❌ Failed to connect to database: %v", err)
-		return
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	// Run migrations
-	if err := db.Migrate(database); err != nil {
+	if err := db.Migrate(dbConn); err != nil {
 		log.Printf("⚠️ Migration warning: %v", err)
 	}
 
 	// Initialize services
-	notifSvc = services.NewNotificationService(database)
-	chatRepo := postgres.NewChatRepo(database)
-	
+	newNotifSvc := services.NewNotificationService(dbConn)
+	chatRepo := postgres.NewChatRepo(dbConn)
+
 	// Setup WebSocket hub (Logic compatibility)
-	hub = websocket.NewHub(chatRepo, notifSvc)
-	go hub.Run()
+	newHub := websocket.NewHub(chatRepo, newNotifSvc)
+	go newHub.Run()
 
 	// Setup Gin
 	if os.Getenv("GIN_MODE") == "release" {
 		gin.SetMode(gin.ReleaseMode)
 	}
-	router = gin.Default()
+	newRouter := gin.Default()
 
 	// CORS Configuration — dynamic for Vercel preview deployments
-	router.Use(func(c *gin.Context) {
+	newRouter.Use(func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
-		
+
 		// Allow: localhost dev, any *.vercel.app deployment, and custom origins from env
 		allowed := origin == "http://localhost:5173" ||
 			strings.HasSuffix(origin, ".vercel.app") ||
 			strings.HasSuffix(origin, ".vercel.app/")
-		
+
 		if !allowed {
 			if raw := os.Getenv("CORS_ALLOWED_ORIGINS"); raw != "" {
 				for _, o := range strings.Split(raw, ",") {
@@ -94,7 +101,7 @@ func initApp() {
 	})
 
 	// Routes
-	router.GET("/api/health", func(c *gin.Context) {
+	newRouter.GET("/api/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "server": "Vercel Serverless", "time": time.Now()})
 	})
 
@@ -110,32 +117,74 @@ func initApp() {
 			c.AbortWithStatus(401)
 			return
 		}
-		ticket := hub.IssueTicket(claims.UserID, claims.Username)
+		ticket := newHub.IssueTicket(claims.UserID, claims.Username)
 		c.JSON(200, gin.H{"ticket": ticket})
 	}
 
-	router.POST("/api/ws-ticket", wsTicketHandler)
-	
+	newRouter.POST("/api/ws-ticket", wsTicketHandler)
+
 	// Main API routes
-	api.SetupRoutes(router, database, hub, notifSvc)
+	api.SetupRoutes(newRouter, dbConn, newHub, newNotifSvc)
 
 	// WebSocket fallback error
-	router.GET("/api/ws", func(c *gin.Context) {
+	newRouter.GET("/api/ws", func(c *gin.Context) {
 		c.JSON(http.StatusNotImplemented, gin.H{
 			"error": "WebSockets are not supported on Vercel Serverless.",
 		})
 	})
+
+	database = dbConn
+	notifSvc = newNotifSvc
+	hub = newHub
+	router = newRouter
+	return nil
+}
+
+func redactURL(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "[invalid DATABASE_URL]"
+	}
+	if parsed.User != nil {
+		username := parsed.User.Username()
+		if username != "" {
+			parsed.User = url.UserPassword(username, "***")
+		} else {
+			parsed.User = url.UserPassword("***", "***")
+		}
+	}
+	q := parsed.Query()
+	if q.Get("password") != "" {
+		q.Set("password", "***")
+		parsed.RawQuery = q.Encode()
+	}
+	return parsed.String()
 }
 
 // Handler is the entry point for Vercel
 func Handler(w http.ResponseWriter, r *http.Request) {
-	once.Do(initApp)
+	if router == nil {
+		initMu.Lock()
+		if router == nil {
+			if err := initApp(); err != nil {
+				lastInitErr = err
+				log.Printf("❌ Failed to initialize app: %v", err)
+			} else {
+				lastInitErr = nil
+			}
+		}
+		initMu.Unlock()
+	}
+
 	if router == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(500)
-		w.Write([]byte(`{"error":"Server initialization failed. Check DATABASE_URL and other environment variables in Vercel settings."}`))
+		initErr := "Server initialization failed. Check database environment variables in Vercel settings."
+		if lastInitErr != nil {
+			initErr = fmt.Sprintf("Server initialization failed: %s", lastInitErr.Error())
+		}
+		w.Write([]byte(fmt.Sprintf(`{"error":%q}`, initErr)))
 		return
 	}
 	router.ServeHTTP(w, r)
 }
-
