@@ -2,6 +2,7 @@ package handler
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"net/http"
@@ -107,20 +108,30 @@ func initApp() error {
 		c.JSON(200, gin.H{"status": "ok", "server": "Vercel Serverless", "time": time.Now()})
 	})
 
-	// Load and parse JWT keys
-	privKeyStr := os.Getenv("JWT_PRIVATE_KEY")
-	pubKeyStr := os.Getenv("JWT_PUBLIC_KEY")
+	// Load and parse JWT keys (stored as base64 in env vars)
+	privKeyB64 := os.Getenv("JWT_PRIVATE_KEY")
+	pubKeyB64 := os.Getenv("JWT_PUBLIC_KEY")
 	
-	if privKeyStr == "" || pubKeyStr == "" {
+	if privKeyB64 == "" || pubKeyB64 == "" {
 		return fmt.Errorf("JWT_PRIVATE_KEY or JWT_PUBLIC_KEY is missing")
 	}
 
-	privKey, err := auth.ParseRSAPrivateKey(privKeyStr)
+	privKeyPEM, err := base64.StdEncoding.DecodeString(strings.TrimSpace(privKeyB64))
+	if err != nil {
+		return fmt.Errorf("failed to base64-decode JWT_PRIVATE_KEY: %v", err)
+	}
+
+	pubKeyPEM, err := base64.StdEncoding.DecodeString(strings.TrimSpace(pubKeyB64))
+	if err != nil {
+		return fmt.Errorf("failed to base64-decode JWT_PUBLIC_KEY: %v", err)
+	}
+
+	privKey, err := auth.ParseRSAPrivateKey(string(privKeyPEM))
 	if err != nil {
 		return fmt.Errorf("failed to parse JWT_PRIVATE_KEY: %v", err)
 	}
 
-	pubKey, err := auth.ParseRSAPublicKey(pubKeyStr)
+	pubKey, err := auth.ParseRSAPublicKey(string(pubKeyPEM))
 	if err != nil {
 		return fmt.Errorf("failed to parse JWT_PUBLIC_KEY: %v", err)
 	}
