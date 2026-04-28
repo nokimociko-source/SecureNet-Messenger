@@ -116,12 +116,21 @@ func initApp() error {
 		return fmt.Errorf("JWT_PRIVATE_KEY or JWT_PUBLIC_KEY is missing")
 	}
 
-	privKeyPEM, err := base64.StdEncoding.DecodeString(strings.TrimSpace(privKeyB64))
+	// Helper to strip all whitespace and illegal chars from b64
+	cleanB64 := func(s string) string {
+		s = strings.ReplaceAll(s, "\n", "")
+		s = strings.ReplaceAll(s, "\r", "")
+		s = strings.ReplaceAll(s, "\t", "")
+		s = strings.ReplaceAll(s, " ", "")
+		return strings.TrimSpace(s)
+	}
+
+	privKeyPEM, err := base64.StdEncoding.DecodeString(cleanB64(privKeyB64))
 	if err != nil {
 		return fmt.Errorf("failed to base64-decode JWT_PRIVATE_KEY: %v", err)
 	}
 
-	pubKeyPEM, err := base64.StdEncoding.DecodeString(strings.TrimSpace(pubKeyB64))
+	pubKeyPEM, err := base64.StdEncoding.DecodeString(cleanB64(pubKeyB64))
 	if err != nil {
 		return fmt.Errorf("failed to base64-decode JWT_PUBLIC_KEY: %v", err)
 	}
