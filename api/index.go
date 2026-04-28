@@ -105,22 +105,6 @@ func initApp() error {
 		c.JSON(200, gin.H{"status": "ok", "server": "Vercel Serverless", "time": time.Now()})
 	})
 
-	wsTicketHandler := func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if !strings.HasPrefix(authHeader, "Bearer ") {
-			c.AbortWithStatus(401)
-			return
-		}
-		token := strings.TrimPrefix(authHeader, "Bearer ")
-		claims, err := auth.ValidateToken(token, cfg.JWTSecret)
-		if err != nil {
-			c.AbortWithStatus(401)
-			return
-		}
-		ticket := newHub.IssueTicket(claims.UserID, claims.Username)
-		c.JSON(200, gin.H{"ticket": ticket})
-	}
-
 	// Main API routes
 	api.SetupRoutes(newRouter, dbConn, newHub, newNotifSvc)
 
