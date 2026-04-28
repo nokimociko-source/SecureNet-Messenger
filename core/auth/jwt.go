@@ -54,21 +54,24 @@ func ValidateToken(tokenString string, publicKey *rsa.PublicKey) (*Claims, error
 }
 
 func formatPEM(pemString string, keyType string) string {
-	pemString = strings.ReplaceAll(pemString, "\\n", "\n")
-	if strings.Contains(pemString, "\n") && len(strings.Split(pemString, "\n")) > 2 {
-		return pemString // Already seems formatted
-	}
+	// Strip literally everything that could be a formatting artifact
+	pemString = strings.ReplaceAll(pemString, "\\n", "")
+	pemString = strings.ReplaceAll(pemString, "\n", "")
+	pemString = strings.ReplaceAll(pemString, "\r", "")
+	pemString = strings.ReplaceAll(pemString, "\t", "")
+	pemString = strings.ReplaceAll(pemString, " ", "")
+	pemString = strings.ReplaceAll(pemString, "\"", "")
+	pemString = strings.ReplaceAll(pemString, "'", "")
 	
-	// If it's all one line, try to reconstruct it
-	pemString = strings.ReplaceAll(pemString, " ", "") // remove spaces except in headers
-	header := "-----BEGIN" + keyType + "KEY-----"
-	footer := "-----END" + keyType + "KEY-----"
+	// Determine the compressed header and footer
+	header := "-----BEGIN" + strings.ReplaceAll(keyType, " ", "") + "KEY-----"
+	footer := "-----END" + strings.ReplaceAll(keyType, " ", "") + "KEY-----"
 	
-	// Remove headers to get raw base64
-	raw := strings.ReplaceAll(pemString, strings.ReplaceAll(header, " ", ""), "")
-	raw = strings.ReplaceAll(raw, strings.ReplaceAll(footer, " ", ""), "")
+	// Extract pure base64
+	raw := strings.ReplaceAll(pemString, header, "")
+	raw = strings.ReplaceAll(raw, footer, "")
 	
-	// chunk by 64 chars
+	// Reconstruct by 64 chars
 	var chunks []string
 	for i := 0; i < len(raw); i += 64 {
 		end := i + 64
