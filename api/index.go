@@ -69,12 +69,12 @@ func initApp() error {
 	// CORS Configuration — dynamic for Vercel preview deployments
 	newRouter.Use(func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
-
+		
 		// Allow: localhost dev, any *.vercel.app deployment, and custom origins from env
 		allowed := origin == "http://localhost:5173" ||
 			strings.HasSuffix(origin, ".vercel.app") ||
 			strings.HasSuffix(origin, ".vercel.app/")
-
+		
 		if !allowed {
 			if raw := os.Getenv("CORS_ALLOWED_ORIGINS"); raw != "" {
 				for _, o := range strings.Split(raw, ",") {
@@ -209,8 +209,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(500)
 		initErr := "Server initialization failed. Check DATABASE_URL and related DB variables in Vercel settings."
-		if lastInitErr != nil && strings.Contains(strings.ToLower(lastInitErr.Error()), "database url is not set") {
-			initErr = "Server initialization failed: database url is not set in runtime environment."
+		if lastInitErr != nil {
+			initErr = fmt.Sprintf("Server initialization failed: %s", lastInitErr.Error())
 		}
 		w.Write([]byte(fmt.Sprintf(`{"error":%q}`, initErr)))
 		return

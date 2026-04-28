@@ -1,6 +1,7 @@
 package config
 
 import (
+	"net/url"
 	"os"
 	"strings"
 )
@@ -28,7 +29,7 @@ func Load() *Config {
 	databaseURL, databaseURLSource := mustGetEnvAny(databaseURLKeys...)
 
 	return &Config{
-		DatabaseURL:       databaseURL,
+		DatabaseURL:       normalizeDatabaseURL(databaseURL),
 		DatabaseURLSource: databaseURLSource,
 		Port:              getEnv("PORT", "8080"),
 		JWTSecret:         getEnv("JWT_SECRET", "DANGER_INSECURE_DEFAULT_SECRET_MUST_CHANGE_IN_PRODUCTION"),
@@ -79,4 +80,28 @@ func DatabaseURLCandidateKeys() []string {
 	keys := make([]string, len(databaseURLKeys))
 	copy(keys, databaseURLKeys)
 	return keys
+}
+
+func normalizeDatabaseURL(raw string) string {
+	if raw == "" {
+		return ""
+	}
+
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+
+	if parsed.Scheme != "postgres" && parsed.Scheme != "postgresql" {
+		return raw
+	}
+
+	q := parsed.Query()
+	if q.Get("sslmode") == "" {
+		q.Set("sslmode", "require")
+		parsed.RawQuery = q.Encode()
+		return parsed.String()
+	}
+
+	return raw
 }

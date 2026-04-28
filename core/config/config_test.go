@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestLookupEnvValueFallsBackToTrimmedKey(t *testing.T) {
 	t.Setenv("DATABASE_URL ", " postgres://user:pass@localhost:5432/db?sslmode=require ")
@@ -23,5 +26,12 @@ func TestMustGetEnvAnyUsesAliases(t *testing.T) {
 	}
 	if source != "POSTGRES_URL" {
 		t.Fatalf("unexpected source key: %s", source)
+	}
+}
+
+func TestNormalizeDatabaseURLAddsSSLMode(t *testing.T) {
+	got := normalizeDatabaseURL("postgres://user:pass@db.example:5432/app")
+	if !strings.Contains(got, "sslmode=require") {
+		t.Fatalf("expected sslmode=require in url, got: %s", got)
 	}
 }
