@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"strings"
@@ -53,62 +54,69 @@ func ValidateToken(tokenString string, publicKey *rsa.PublicKey) (*Claims, error
 	return nil, fmt.Errorf("invalid token")
 }
 
-func formatPEM(pemString string, keyType string) string {
-	// Strip literally everything that could be a formatting artifact
-	pemString = strings.ReplaceAll(pemString, "\\n", "")
-	pemString = strings.ReplaceAll(pemString, "\n", "")
-	pemString = strings.ReplaceAll(pemString, "\r", "")
-	pemString = strings.ReplaceAll(pemString, "\t", "")
-	pemString = strings.ReplaceAll(pemString, " ", "")
-	pemString = strings.ReplaceAll(pemString, "\"", "")
-	pemString = strings.ReplaceAll(pemString, "'", "")
-	
-	// Determine the compressed header and footer
-	header := "-----BEGIN" + strings.ReplaceAll(keyType, " ", "") + "KEY-----"
-	footer := "-----END" + strings.ReplaceAll(keyType, " ", "") + "KEY-----"
-	
-	// Extract pure base64
-	raw := strings.ReplaceAll(pemString, header, "")
-	raw = strings.ReplaceAll(raw, footer, "")
-	
-	// Reconstruct by 64 chars
-	var chunks []string
-	for i := 0; i < len(raw); i += 64 {
-		end := i + 64
-		if end > len(raw) {
-			end = len(raw)
-		}
-		chunks = append(chunks, raw[i:end])
+func normalizePEM(input string) string {
+	trimmed := strings.TrimSpace(input)
+	trimmed = strings.Trim(trimmed, `"'`)
+	trimmed = strings.ReplaceAll(trimmed, "\\n", "\n")
+
+	if strings.Contains(trimmed, "-----BEGIN") {
+		return trimmed
 	}
-	
-	return "-----BEGIN " + keyType + " KEY-----\n" + strings.Join(chunks, "\n") + "\n-----END " + keyType + " KEY-----\n"
+
+	decoded, err := base64.StdEncoding.DecodeString(trimmed)
+	if err != nil {
+		return trimmed
+	}
+
+	decodedPEM := strings.TrimSpace(string(decoded))
+	if strings.Contains(decodedPEM, "-----BEGIN") {
+		return decodedPEM
+	}
+
+	return trimmed
 }
 
 func ParseRSAPrivateKey(pemString string) (*rsa.PrivateKey, error) {
-	pemString = formatPEM(pemString, "RSA PRIVATE")
-	block, _ := pem.Decode([]byte(pemString))
+	block, _ := pem.Decode([]byte(normalizePEM(pemString)))
 	if block == nil {
 		return nil, fmt.Errorf("failed to parse PEM block containing the key")
 	}
-	return x509.ParsePKCS1PrivateKey(block.Bytes)
-}
 
-func ParseRSAPublicKey(pemString string) (*rsa.PublicKey, error) {
-	pemString = formatPEM(pemString, "RSA PUBLIC")
-	block, _ := pem.Decode([]byte(pemString))
-	if block == nil {
-		return nil, fmt.Errorf("failed to parse PEM block containing the key")
+	if key, err := x509.ParsePKCS1PrivateKey(block.Bytes); err == nil {
+		return key, nil
 	}
-	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+
+	pkcs8Key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
 		return nil, err
 	}
-	switch pub := pub.(type) {
-	case *rsa.PublicKey:
-		return pub, nil
-	default:
+
+	rsaKey, ok := pkcs8Key.(*rsa.PrivateKey)
+	if !ok {
 		return nil, fmt.Errorf("key type is not RSA")
 	}
+	return rsaKey, nil
+}
+
+func ParseRSAPublicKey(pemString string) (*rsa.PublicKey, error) {
+	block, _ := pem.Decode([]byte(normalizePEM(pemString)))
+	if block == nil {
+		return nil, fmt.Errorf("failed to parse PEM block containing the key")
+	}
+
+	if key, err := x509.ParsePKIXPublicKey(block.Bytes); err == nil {
+		rsaKey, ok := key.(*rsa.PublicKey)
+		if !ok {
+			return nil, fmt.Errorf("key type is not RSA")
+		}
+		return rsaKey, nil
+	}
+
+	if key, err := x509.ParsePKCS1PublicKey(block.Bytes); err == nil {
+		return key, nil
+	}
+
+	return nil, fmt.Errorf("failed to parse RSA public key")
 }
 
 func GenerateRefreshToken() (string, error) {
