@@ -2,7 +2,6 @@ package handler
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"fmt"
 	"log"
 	"net/http"
