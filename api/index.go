@@ -41,35 +41,33 @@ func initApp() error {
 		return fmt.Errorf("DB connection failed: %w", err)
 	}
 
-	// 1. MUST run migrations first to ensure system_configs exists
+	// 1. Run migrations
 	if err := db.Migrate(dbConn); err != nil {
 		log.Printf("Migration warning: %v", err)
 	}
 
-	// 2. Load keys from DB with total silence on missing keys (we'll handle it below)
+	// 2. STMT LOAD FROM DB ONLY (Forget Vercel Env Vars for keys)
 	var privKeyPEM, pubKeyPEM string
-	_ = dbConn.QueryRow("SELECT value FROM system_configs WHERE key = 'jwt_private_key'").Scan(&privKeyPEM)
-	_ = dbConn.QueryRow("SELECT value FROM system_configs WHERE key = 'jwt_public_key'").Scan(&pubKeyPEM)
-
-	// 3. If DB is empty, bootstrap from Env
-	if privKeyPEM == "" || pubKeyPEM == "" {
-		log.Println("Initializing keys from environment...")
-		privKeyPEM = os.Getenv("JWT_PRIVATE_KEY")
-		pubKeyPEM = os.Getenv("JWT_PUBLIC_KEY")
-
-		if privKeyPEM != "" && pubKeyPEM != "" {
-			_, _ = dbConn.Exec("INSERT INTO system_configs (key, value) VALUES ('jwt_private_key', $1), ('jwt_public_key', $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", privKeyPEM, pubKeyPEM)
-		}
+	err = dbConn.QueryRow("SELECT value FROM system_configs WHERE key = 'jwt_private_key'").Scan(&privKeyPEM)
+	if err != nil {
+		return fmt.Errorf("JWT_PRIVATE_KEY not found in DB. Run SQL insert first. Error: %v", err)
+	}
+	err = dbConn.QueryRow("SELECT value FROM system_configs WHERE key = 'jwt_public_key'").Scan(&pubKeyPEM)
+	if err != nil {
+		return fmt.Errorf("JWT_PUBLIC_KEY not found in DB. Run SQL insert first. Error: %v", err)
 	}
 
-	// Final check
-	if privKeyPEM == "" || pubKeyPEM == "" {
-		return fmt.Errorf("JWT keys missing in both DB and Environment")
-	}
+	log.Printf("🔑 Keys loaded from DB. Private length: %d, Public length: %d", len(privKeyPEM), len(pubKeyPEM))
 
+	// 3. Parse with aggressive normalization
 	privKey, err := auth.ParseRSAPrivateKey(privKeyPEM)
 	if err != nil {
-		return fmt.Errorf("failed to parse JWT_PRIVATE_KEY: %v", err)
+		// Log the actual string (masked) for debugging
+		sample := ""
+		if len(privKeyPEM) > 20 {
+			sample = privKeyPEM[:10] + "..." + privKeyPEM[len(privKeyPEM)-10:]
+		}
+		return fmt.Errorf("failed to parse JWT_PRIVATE_KEY (len:%d, data:%s): %v", len(privKeyPEM), sample, err)
 	}
 
 	pubKey, err := auth.ParseRSAPublicKey(pubKeyPEM)
@@ -126,7 +124,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	if lastInitErr != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(500)
-		fmt.Fprintf(w, `{"error":"Server initialization failed: %v"}`, lastInitErr)
+		// Explicit error for debugging
+		fmt.Fprintf(w, `{"error":%q}`, lastInitErr.Error())
 		return
 	}
 	router.ServeHTTP(w, r)
