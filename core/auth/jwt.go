@@ -55,25 +55,33 @@ func ValidateToken(tokenString string, publicKey *rsa.PublicKey) (*Claims, error
 }
 
 func normalizePEM(input string) string {
-	trimmed := strings.TrimSpace(input)
-	trimmed = strings.Trim(trimmed, `"'`)
-	trimmed = strings.ReplaceAll(trimmed, "\\n", "\n")
+	// 1. Basic cleanup
+	s := strings.TrimSpace(input)
+	s = strings.Trim(s, `"'`)
+	s = strings.ReplaceAll(s, "\\n", "\n")
+	s = strings.ReplaceAll(s, "\\r", "")
 
-	if strings.Contains(trimmed, "-----BEGIN") {
-		return trimmed
+	// 2. If it already contains the header, try to extract just the block
+	if strings.Contains(s, "-----BEGIN") {
+		start := strings.Index(s, "-----BEGIN")
+		end := strings.Index(s, "-----END")
+		if end > start {
+			// Find the end of the footer line
+			footerEnd := strings.Index(s[end:], "-----")
+			if footerEnd != -1 {
+				return s[start : end+footerEnd+5]
+			}
+		}
+		return s
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(trimmed)
-	if err != nil {
-		return trimmed
+	// 3. Try Base64 decode
+	decoded, err := base64.StdEncoding.DecodeString(s)
+	if err == nil {
+		return normalizePEM(string(decoded))
 	}
 
-	decodedPEM := strings.TrimSpace(string(decoded))
-	if strings.Contains(decodedPEM, "-----BEGIN") {
-		return decodedPEM
-	}
-
-	return trimmed
+	return s
 }
 
 func ParseRSAPrivateKey(pemString string) (*rsa.PrivateKey, error) {

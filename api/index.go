@@ -43,7 +43,7 @@ func initApp() error {
 
 	// 1. Run migrations
 	if err := db.Migrate(dbConn); err != nil {
-		log.Printf("Migration warning: %v", err)
+		return fmt.Errorf("migration failed: %w", err)
 	}
 
 	// 2. FORCE BOOTSTRAP FROM CODE (Since manual SQL access is blocked)
