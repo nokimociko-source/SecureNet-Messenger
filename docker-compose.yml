@@ -3,23 +3,27 @@ version: '3.8'
 services:
   backend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
     environment:
-      - DB_TYPE=${DB_TYPE:-postgres}
-      - DB_URL=${DB_URL:-postgres://user:password@db:5432/securenet?sslmode=disable}
+      - DATABASE_URL=${DATABASE_URL:-postgres://user:password@db:5432/securenet?sslmode=disable}
+      - JWT_PRIVATE_KEY=${JWT_PRIVATE_KEY}
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
       - REDIS_URL=redis:6379
-      - SPANNER_EMULATOR_HOST=spanner:9010
-      - BIGTABLE_EMULATOR_HOST=bigtable:9000
+      - GIN_MODE=release
+      - PORT=8080
+      - PUSHER_APP_ID=${PUSHER_APP_ID:-}
+      - PUSHER_KEY=${PUSHER_KEY:-6c40eb129881d9bb18cf}
+      - PUSHER_SECRET=${PUSHER_SECRET:-}
+      - PUSHER_CLUSTER=${PUSHER_CLUSTER:-mt1}
     depends_on:
       - db
       - redis
-      - spanner
-      - bigtable
     networks:
       - securenet-network
+    restart: unless-stopped
 
   db:
     image: postgres:15-alpine
@@ -29,6 +33,8 @@ services:
       - POSTGRES_DB=${DB_NAME:-securenet}
     ports:
       - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     networks:
       - securenet-network
 
@@ -72,3 +78,6 @@ services:
 networks:
   securenet-network:
     driver: bridge
+
+volumes:
+  pgdata:

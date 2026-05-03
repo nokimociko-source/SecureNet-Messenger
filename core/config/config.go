@@ -87,21 +87,70 @@ func normalizeDatabaseURL(raw string) string {
 		return ""
 	}
 
+	// Try direct parse first
 	parsed, err := url.Parse(raw)
+	if err == nil && (parsed.Scheme == "postgres" || parsed.Scheme == "postgresql") {
+		// Valid URL — ensure sslmode is set
+		q := parsed.Query()
+		if q.Get("sslmode") == "" {
+			q.Set("sslmode", "require")
+			parsed.RawQuery = q.Encode()
+			return parsed.String()
+		}
+		return raw
+	}
+
+	// URL parse failed — likely due to special characters in password (e.g. !@#$)
+	// Try to reconstruct with URL-encoded userinfo
+	// Format: postgres://user:password@host:port/dbname?params
+	if !strings.HasPrefix(raw, "postgres://") && !strings.HasPrefix(raw, "postgresql://") {
+		return raw
+	}
+
+	scheme := "postgres://"
+	if strings.HasPrefix(raw, "postgresql://") {
+		scheme = "postgresql://"
+	}
+	rest := raw[len(scheme):]
+
+	// Find the @ separator between userinfo and host
+	atIdx := strings.LastIndex(rest, "@")
+	if atIdx == -1 {
+		// No @ found — can't fix
+		return raw
+	}
+
+	userinfo := rest[:atIdx]
+	hostPart := rest[atIdx+1:]
+
+	// Split user:password
+	colonIdx := strings.Index(userinfo, ":")
+	if colonIdx == -1 {
+		// No password — just reassemble
+		rebuilt := scheme + url.PathEscape(userinfo) + "@" + hostPart
+		return setDefaultSSLMode(rebuilt)
+	}
+
+	user := userinfo[:colonIdx]
+	password := userinfo[colonIdx+1:]
+
+	// URL-encode the password to handle special characters like !@#$%
+	encodedPassword := url.QueryEscape(password)
+
+	rebuilt := scheme + user + ":" + encodedPassword + "@" + hostPart
+	return setDefaultSSLMode(rebuilt)
+}
+
+func setDefaultSSLMode(dbURL string) string {
+	parsed, err := url.Parse(dbURL)
 	if err != nil {
-		return raw
+		return dbURL
 	}
-
-	if parsed.Scheme != "postgres" && parsed.Scheme != "postgresql" {
-		return raw
-	}
-
 	q := parsed.Query()
 	if q.Get("sslmode") == "" {
 		q.Set("sslmode", "require")
 		parsed.RawQuery = q.Encode()
 		return parsed.String()
 	}
-
-	return raw
+	return dbURL
 }
