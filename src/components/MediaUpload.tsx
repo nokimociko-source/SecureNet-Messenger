@@ -100,7 +100,7 @@ export function MediaUpload({ chatId, onUploadComplete, apiRequest }: MediaUploa
         fileName: file.name,
         fileSize: file.size,
         mimeType: file.type,
-        url: `/api/media/${media.id}?token=${localStorage.getItem('token')}`,
+        url: `/api/media/${media.id}`,
         encryptionKey: keyJwk,
         iv: (await import('../crypto/webcrypto')).arrayToBase64(iv),
       });
@@ -295,7 +295,7 @@ export function MediaPreview({ media }: { media: UploadedMedia }) {
   const [decryptedUrl, setDecryptedUrl] = useState<string | null>(null);
   const [decrypting, setDecrypting] = useState(!!media.encryptionKey);
 
-  useState(() => {
+  useEffect(() => {
     if (!media.encryptionKey || !media.iv) return;
 
     const decrypt = async () => {
@@ -318,7 +318,14 @@ export function MediaPreview({ media }: { media: UploadedMedia }) {
     };
 
     decrypt();
-  });
+
+    // Cleanup object URL to prevent memory leak
+    return () => {
+      if (decryptedUrl) {
+        URL.revokeObjectURL(decryptedUrl);
+      }
+    };
+  }, [media.encryptionKey, media.iv, media.url, media.mimeType]);
 
   const displayUrl = media.encryptionKey ? decryptedUrl : media.url;
 

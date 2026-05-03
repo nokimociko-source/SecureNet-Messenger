@@ -33,10 +33,6 @@ docker-compose up -d --build
 ## 📜 Legal
 See [PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) and [TERMS_OF_SERVICE.md](docs/TERMS_OF_SERVICE.md).
 
-<<<<<<< HEAD
----
-© 2026 DemonestoriCat Systems. All rights reserved.
-=======
 ## 🏗 CI/CD
 Automated pipelines via GitHub Actions:
 - **Backend**: Build, Test, and Security Scan (gosec).
@@ -62,4 +58,6 @@ Use HTTPS URLs only (GitHub Releases or trusted Telegram CDN links), and always 
 
 ## 📜 License
 Private / Proprietary
->>>>>>> origin/codex/verify-request-cu3ass
+
+---
+© 2026 DemonestoriCat Systems. All rights reserved.

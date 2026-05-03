@@ -68,7 +68,7 @@
       "pubkey": "dW5kZWZpbmVk"
     },
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https: wss:; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://api.catlover.app wss://ws.catlover.app wss://*.vercel.app https://*.vercel.app; img-src 'self' data: blob: https://*.vercel.app; font-src 'self' data:; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     },
     "systemTray": {
       "iconPath": "icons/icon.ico",

@@ -52,7 +52,7 @@ func (r *MessageRepo) StoreMessage(ctx context.Context, msg *models.Message, cli
 func (r *MessageRepo) GetChatMessages(ctx context.Context, chatID string, limit int, offset int) ([]*models.Message, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, session_id, sender_id, content, msg_type, status, timestamp
-		 FROM messages WHERE session_id = $1
+		 FROM messages WHERE session_id = $1 AND deleted_at IS NULL
 		 ORDER BY timestamp DESC LIMIT $2 OFFSET $3`,
 		chatID, limit, offset,
 	)
@@ -79,6 +79,17 @@ func (r *MessageRepo) UpdateMessageStatus(ctx context.Context, messageID string,
 	)
 	if err != nil {
 		return fmt.Errorf("update message status: %w", err)
+	}
+	return nil
+}
+
+func (r *MessageRepo) SoftDelete(ctx context.Context, messageID string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE messages SET deleted_at = NOW() WHERE id = $1`,
+		messageID,
+	)
+	if err != nil {
+		return fmt.Errorf("soft delete message: %w", err)
 	}
 	return nil
 }

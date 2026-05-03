@@ -89,10 +89,21 @@ async function kdfRootKey(rootKey: Uint8Array, dhOutput: CryptoKey): Promise<{ n
   
   const hash = await hashSHA256(combined);
   
-  // Split hash: first 32 bytes = new root key, rest = chain key
+  // Split hash: first 32 bytes = new root key, next 32 bytes = chain key
+  // For SHA-256 (32 bytes), we need to derive separate keys using different info strings
+  const rootKeyInput = new Uint8Array(hash.length + KDF_INFO_ROOT.length);
+  rootKeyInput.set(hash);
+  rootKeyInput.set(new TextEncoder().encode('SecureNet-RootKey'), hash.length);
+  const newRootKey = await hashSHA256(rootKeyInput);
+  
+  const chainKeyInput = new Uint8Array(hash.length + KDF_INFO_ROOT.length);
+  chainKeyInput.set(hash);
+  chainKeyInput.set(new TextEncoder().encode('SecureNet-ChainKey'), hash.length);
+  const chainKey = await hashSHA256(chainKeyInput);
+  
   return {
-    newRootKey: hash.slice(0, 32),
-    chainKey: hash.slice(0, 32), // Use full 32 bytes for chain key
+    newRootKey,
+    chainKey,
   };
 }
 

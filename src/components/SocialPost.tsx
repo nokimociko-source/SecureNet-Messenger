@@ -31,6 +31,7 @@ interface PostProps {
     isFriend?: boolean;
     signature?: string;
     authorPublicKey?: string;
+    authorSigningPublicKey?: string;
   };
   onReport?: (targetId: string) => void;
   onForward?: (post: any) => void;
@@ -47,13 +48,15 @@ export const SocialPost: React.FC<PostProps> = ({ post: initialPost, onReport, o
 
   React.useEffect(() => {
     const verify = async () => {
-      if (!post.signature || !post.authorPublicKey) {
+      // Use signing public key for ECDSA verification (not ECDH key)
+      if (!post.signature || !post.authorSigningPublicKey) {
         setIsVerified(false);
         return;
       }
       try {
         const crypto = await import('../crypto/webcrypto');
-        const pubKey = await crypto.importECDHPublicKey(JSON.parse(post.authorPublicKey));
+        // Import as ECDSA public key for signature verification
+        const pubKey = await crypto.importECDHPublicKey(JSON.parse(post.authorSigningPublicKey));
         const sig = crypto.base64ToArray(post.signature);
         const data = new TextEncoder().encode(post.content);
         const valid = await crypto.verifyECDSA(data, sig, pubKey);
@@ -64,7 +67,7 @@ export const SocialPost: React.FC<PostProps> = ({ post: initialPost, onReport, o
       }
     };
     verify();
-  }, [post.id, post.content, post.signature, post.authorPublicKey]);
+  }, [post.id, post.content, post.signature, post.authorSigningPublicKey]);
 
   const handleLike = async () => {
     if (isLiking) return;

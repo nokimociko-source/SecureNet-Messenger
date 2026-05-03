@@ -96,7 +96,7 @@ func (r *ChatRepo) GetUserChats(ctx context.Context, userID string) ([]*models.C
 		`SELECT c.id, c.type, c.name, c.avatar_url, c.created_at, c.updated_at, c.last_message_at
 		 FROM chats c
 		 JOIN chat_participants cp ON c.id = cp.chat_id
-		 WHERE cp.user_id = $1
+		 WHERE cp.user_id = $1 AND c.deleted_at IS NULL
 		 ORDER BY c.last_message_at DESC NULLS LAST`, userID,
 	)
 	if err != nil {
@@ -262,4 +262,15 @@ func (r *ChatRepo) IsParticipant(ctx context.Context, chatID string, userID stri
 		return false, fmt.Errorf("check participant: %w", err)
 	}
 	return exists, nil
+}
+
+func (r *ChatRepo) SoftDelete(ctx context.Context, chatID string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE chats SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1`,
+		chatID,
+	)
+	if err != nil {
+		return fmt.Errorf("soft delete chat: %w", err)
+	}
+	return nil
 }

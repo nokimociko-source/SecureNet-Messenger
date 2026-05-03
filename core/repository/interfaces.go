@@ -18,6 +18,9 @@ type MessageRepository interface {
 
 	// UpdateMessageStatus updates message status (sent, delivered, read).
 	UpdateMessageStatus(ctx context.Context, messageID string, status string) error
+
+	// SoftDelete marks a message as deleted.
+	SoftDelete(ctx context.Context, messageID string) error
 }
 
 // UserRepository defines the interface for user management.
@@ -29,6 +32,7 @@ type UserRepository interface {
 	UpdateStatus(ctx context.Context, userID string, status string) error
 	Search(ctx context.Context, query string, limit int) ([]*models.User, error)
 	Count(ctx context.Context) (int, error)
+	SoftDelete(ctx context.Context, userID string) error
 }
 
 // ChatRepository defines the interface for chat/group management.
@@ -53,12 +57,15 @@ type ChatRepository interface {
 
 	// UpdateChat updates chat metadata (name, etc.).
 	UpdateChat(ctx context.Context, chatID string, name string) error
-	
+
 	// EnsureSavedChat checks if a "Saved Messages" chat exists for the user and creates it if not.
 	EnsureSavedChat(ctx context.Context, userID uuid.UUID) error
 
 	// IsParticipant checks if a user is a member of a chat.
 	IsParticipant(ctx context.Context, chatID string, userID string) (bool, error)
+
+	// SoftDelete marks a chat as deleted.
+	SoftDelete(ctx context.Context, chatID string) error
 }
 
 // DeviceRepository defines the interface for device binding / management.

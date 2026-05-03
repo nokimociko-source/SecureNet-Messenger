@@ -22,10 +22,10 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 func (r *UserRepo) GetByPhone(ctx context.Context, phone string) (*models.User, error) {
 	var u models.User
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, phone_number, COALESCE(email, ''), username, public_key, role, password_hash, online, COALESCE(avatar, ''), phone_visibility, last_seen_visibility, avatar_visibility, last_seen_at, 
+		`SELECT id, phone_number, COALESCE(email, ''), username, public_key, COALESCE(signing_public_key, ''), role, password_hash, online, COALESCE(avatar, ''), phone_visibility, last_seen_visibility, avatar_visibility, last_seen_at, 
 		        notif_private, notif_groups, notif_channels, notif_badges, notif_sounds, notif_reactions, created_at, updated_at
-		 FROM users WHERE phone_number = $1`, phone,
-	).Scan(&u.ID, &u.PhoneNumber, &u.Email, &u.Username, &u.PublicKey, &u.Role, &u.PasswordHash, &u.Online, &u.Avatar, &u.PhoneVisibility, &u.LastSeenVisibility, &u.AvatarVisibility, &u.LastSeenAt,
+		 FROM users WHERE phone_number = $1 AND deleted_at IS NULL`, phone,
+	).Scan(&u.ID, &u.PhoneNumber, &u.Email, &u.Username, &u.PublicKey, &u.SigningPublicKey, &u.Role, &u.PasswordHash, &u.Online, &u.Avatar, &u.PhoneVisibility, &u.LastSeenVisibility, &u.AvatarVisibility, &u.LastSeenAt,
 		&u.NotifPrivate, &u.NotifGroups, &u.NotifChannels, &u.NotifBadges, &u.NotifSounds, &u.NotifReactions, &u.CreatedAt, &u.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -39,10 +39,10 @@ func (r *UserRepo) GetByPhone(ctx context.Context, phone string) (*models.User, 
 func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*models.User, error) {
 	var u models.User
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, phone_number, COALESCE(email, ''), username, public_key, role, password_hash, online, COALESCE(avatar, ''), phone_visibility, last_seen_visibility, avatar_visibility, last_seen_at, 
+		`SELECT id, phone_number, COALESCE(email, ''), username, public_key, COALESCE(signing_public_key, ''), role, password_hash, online, COALESCE(avatar, ''), phone_visibility, last_seen_visibility, avatar_visibility, last_seen_at, 
 		        notif_private, notif_groups, notif_channels, notif_badges, notif_sounds, notif_reactions, created_at, updated_at
-		 FROM users WHERE email = $1`, email,
-	).Scan(&u.ID, &u.PhoneNumber, &u.Email, &u.Username, &u.PublicKey, &u.Role, &u.PasswordHash, &u.Online, &u.Avatar, &u.PhoneVisibility, &u.LastSeenVisibility, &u.AvatarVisibility, &u.LastSeenAt,
+		 FROM users WHERE email = $1 AND deleted_at IS NULL`, email,
+	).Scan(&u.ID, &u.PhoneNumber, &u.Email, &u.Username, &u.PublicKey, &u.SigningPublicKey, &u.Role, &u.PasswordHash, &u.Online, &u.Avatar, &u.PhoneVisibility, &u.LastSeenVisibility, &u.AvatarVisibility, &u.LastSeenAt,
 		&u.NotifPrivate, &u.NotifGroups, &u.NotifChannels, &u.NotifBadges, &u.NotifSounds, &u.NotifReactions, &u.CreatedAt, &u.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -58,9 +58,9 @@ func (r *UserRepo) Create(ctx context.Context, user *models.User) error {
 		user.ID = uuid.New()
 	}
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO users (id, phone_number, email, username, public_key, password_hash, role, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
-		user.ID, user.PhoneNumber, user.Email, user.Username, user.PublicKey, user.PasswordHash, user.Role,
+		`INSERT INTO users (id, phone_number, email, username, public_key, signing_public_key, password_hash, role, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`,
+		user.ID, user.PhoneNumber, user.Email, user.Username, user.PublicKey, user.SigningPublicKey, user.PasswordHash, user.Role,
 	)
 	if err != nil {
 		return fmt.Errorf("create user: %w", err)
@@ -92,10 +92,10 @@ func (r *UserRepo) UpdateStatus(ctx context.Context, userID string, status strin
 func (r *UserRepo) GetByTelegramID(ctx context.Context, telegramID int64) (*models.User, error) {
 	var u models.User
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, phone_number, COALESCE(email, ''), username, public_key, role, password_hash, online, COALESCE(avatar, ''), phone_visibility, last_seen_visibility, avatar_visibility, last_seen_at, 
+		`SELECT id, phone_number, COALESCE(email, ''), username, public_key, COALESCE(signing_public_key, ''), role, password_hash, online, COALESCE(avatar, ''), phone_visibility, last_seen_visibility, avatar_visibility, last_seen_at, 
 		        notif_private, notif_groups, notif_channels, notif_badges, notif_sounds, notif_reactions, created_at, updated_at, COALESCE(telegram_id, 0)
-		 FROM users WHERE telegram_id = $1`, telegramID,
-	).Scan(&u.ID, &u.PhoneNumber, &u.Email, &u.Username, &u.PublicKey, &u.Role, &u.PasswordHash, &u.Online, &u.Avatar, &u.PhoneVisibility, &u.LastSeenVisibility, &u.AvatarVisibility, &u.LastSeenAt,
+		 FROM users WHERE telegram_id = $1 AND deleted_at IS NULL`, telegramID,
+	).Scan(&u.ID, &u.PhoneNumber, &u.Email, &u.Username, &u.PublicKey, &u.SigningPublicKey, &u.Role, &u.PasswordHash, &u.Online, &u.Avatar, &u.PhoneVisibility, &u.LastSeenVisibility, &u.AvatarVisibility, &u.LastSeenAt,
 		&u.NotifPrivate, &u.NotifGroups, &u.NotifChannels, &u.NotifBadges, &u.NotifSounds, &u.NotifReactions, &u.CreatedAt, &u.UpdatedAt, &u.TelegramID)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -114,10 +114,10 @@ func (r *UserRepo) LinkTelegramID(ctx context.Context, userID string, telegramID
 func (r *UserRepo) GetByID(ctx context.Context, userID string) (*models.User, error) {
 	var u models.User
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, phone_number, COALESCE(email, ''), username, public_key, role, password_hash, online, COALESCE(avatar, ''), phone_visibility, last_seen_visibility, avatar_visibility, last_seen_at,
+		`SELECT id, phone_number, COALESCE(email, ''), username, public_key, COALESCE(signing_public_key, ''), role, password_hash, online, COALESCE(avatar, ''), phone_visibility, last_seen_visibility, avatar_visibility, last_seen_at,
 		        notif_private, notif_groups, notif_channels, notif_badges, notif_sounds, notif_reactions, created_at, updated_at, COALESCE(telegram_id, 0)
-		 FROM users WHERE id = $1`, userID,
-	).Scan(&u.ID, &u.PhoneNumber, &u.Email, &u.Username, &u.PublicKey, &u.Role, &u.PasswordHash, &u.Online, &u.Avatar, &u.PhoneVisibility, &u.LastSeenVisibility, &u.AvatarVisibility, &u.LastSeenAt,
+		 FROM users WHERE id = $1 AND deleted_at IS NULL`, userID,
+	).Scan(&u.ID, &u.PhoneNumber, &u.Email, &u.Username, &u.PublicKey, &u.SigningPublicKey, &u.Role, &u.PasswordHash, &u.Online, &u.Avatar, &u.PhoneVisibility, &u.LastSeenVisibility, &u.AvatarVisibility, &u.LastSeenAt,
 		&u.NotifPrivate, &u.NotifGroups, &u.NotifChannels, &u.NotifBadges, &u.NotifSounds, &u.NotifReactions, &u.CreatedAt, &u.UpdatedAt, &u.TelegramID)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -130,8 +130,8 @@ func (r *UserRepo) GetByID(ctx context.Context, userID string) (*models.User, er
 
 func (r *UserRepo) Search(ctx context.Context, query string, limit int) ([]*models.User, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, phone_number, username, public_key, role, avatar FROM users
-		 WHERE phone_number ILIKE $1 OR username ILIKE $1 OR email ILIKE $1 LIMIT $2`,
+		`SELECT id, phone_number, username, public_key, signing_public_key, role, avatar FROM users
+		 WHERE (phone_number ILIKE $1 OR username ILIKE $1 OR email ILIKE $1) AND deleted_at IS NULL LIMIT $2`,
 		"%"+query+"%", limit,
 	)
 	if err != nil {
@@ -142,7 +142,7 @@ func (r *UserRepo) Search(ctx context.Context, query string, limit int) ([]*mode
 	var users []*models.User
 	for rows.Next() {
 		var u models.User
-		if err := rows.Scan(&u.ID, &u.PhoneNumber, &u.Username, &u.PublicKey, &u.Role, &u.Avatar); err != nil {
+		if err := rows.Scan(&u.ID, &u.PhoneNumber, &u.Username, &u.PublicKey, &u.SigningPublicKey, &u.Role, &u.Avatar); err != nil {
 			continue
 		}
 		users = append(users, &u)
@@ -190,6 +190,17 @@ func (r *UserRepo) SavePushSubscription(ctx context.Context, userID string, sub 
 	)
 	if err != nil {
 		return fmt.Errorf("save push subscription: %w", err)
+	}
+	return nil
+}
+
+func (r *UserRepo) SoftDelete(ctx context.Context, userID string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1`,
+		userID,
+	)
+	if err != nil {
+		return fmt.Errorf("soft delete user: %w", err)
 	}
 	return nil
 }

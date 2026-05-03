@@ -21,7 +21,7 @@ func Init(databaseURL string) (*sql.DB, error) {
 	// Configure connection pool (Optimized for Direct Connection)
 	db.SetMaxOpenConns(5)
 	db.SetMaxIdleConns(2)
-	db.SetConnMaxLifetime(5 * time.Minute) 
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	return db, nil
 }
@@ -35,6 +35,7 @@ func Migrate(db *sql.DB) error {
 			email VARCHAR(100) UNIQUE,
 			username VARCHAR(50) NOT NULL,
 			public_key TEXT NOT NULL,
+			signing_public_key TEXT,
 			role VARCHAR(20) DEFAULT 'user',
 			password_hash VARCHAR(255) NOT NULL,
 			online BOOLEAN DEFAULT false,
@@ -42,7 +43,8 @@ func Migrate(db *sql.DB) error {
 			totp_secret VARCHAR(64),
 			totp_enabled BOOLEAN DEFAULT false,
 			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
+			updated_at TIMESTAMP DEFAULT NOW(),
+			deleted_at TIMESTAMP
 		)`,
 		`CREATE TABLE IF NOT EXISTS chats (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -52,7 +54,8 @@ func Migrate(db *sql.DB) error {
 			created_by UUID REFERENCES users(id) ON DELETE SET NULL,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW(),
-			last_message_at TIMESTAMP
+			last_message_at TIMESTAMP,
+			deleted_at TIMESTAMP
 		)`,
 		`CREATE TABLE IF NOT EXISTS chat_participants (
 			chat_id UUID REFERENCES chats(id) ON DELETE CASCADE,
@@ -72,8 +75,9 @@ func Migrate(db *sql.DB) error {
 			client_msg_id VARCHAR(64),
 			media_id UUID,
 			read_at TIMESTAMP,
-			timestamp TIMESTAMP DEFAULT NOW()
-		)`,
+			timestamp TIMESTAMP DEFAULT NOW(),
+			deleted_at TIMESTAMP
+		) PARTITION BY RANGE (timestamp)`,
 		`CREATE TABLE IF NOT EXISTS contacts (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -82,7 +86,8 @@ func Migrate(db *sql.DB) error {
 			is_favorite BOOLEAN DEFAULT false,
 			is_blocked BOOLEAN DEFAULT false,
 			created_at TIMESTAMP DEFAULT NOW(),
-			UNIQUE(user_id, contact_id)
+			UNIQUE(user_id, contact_id),
+			deleted_at TIMESTAMP
 		)`,
 		`CREATE TABLE IF NOT EXISTS reports (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -130,7 +135,8 @@ func Migrate(db *sql.DB) error {
 			storage_path TEXT NOT NULL,
 			encrypted BOOLEAN DEFAULT true,
 			checksum VARCHAR(64) NOT NULL,
-			created_at TIMESTAMP DEFAULT NOW()
+			created_at TIMESTAMP DEFAULT NOW(),
+			deleted_at TIMESTAMP
 		)`,
 
 		// ===== AUDIT LOG =====
@@ -163,7 +169,8 @@ func Migrate(db *sql.DB) error {
 			signature TEXT,
 			is_system BOOLEAN DEFAULT false,
 			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
+			updated_at TIMESTAMP DEFAULT NOW(),
+			deleted_at TIMESTAMP
 		)`,
 		`CREATE TABLE IF NOT EXISTS post_likes (
 			post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
@@ -223,6 +230,21 @@ func Migrate(db *sql.DB) error {
 			is_used BOOLEAN DEFAULT false,
 			created_at TIMESTAMP DEFAULT NOW()
 		)`,
+		// ===== PARTITIONS FOR MESSAGES (Monthly partitions for scalability) =====
+		`CREATE TABLE IF NOT EXISTS messages_2025_01 PARTITION OF messages FOR VALUES FROM ('2025-01-01') TO ('2025-02-01')`,
+		`CREATE TABLE IF NOT EXISTS messages_2025_02 PARTITION OF messages FOR VALUES FROM ('2025-02-01') TO ('2025-03-01')`,
+		`CREATE TABLE IF NOT EXISTS messages_2025_03 PARTITION OF messages FOR VALUES FROM ('2025-03-01') TO ('2025-04-01')`,
+		`CREATE TABLE IF NOT EXISTS messages_2025_04 PARTITION OF messages FOR VALUES FROM ('2025-04-01') TO ('2025-05-01')`,
+		`CREATE TABLE IF NOT EXISTS messages_2025_05 PARTITION OF messages FOR VALUES FROM ('2025-05-01') TO ('2025-06-01')`,
+		`CREATE TABLE IF NOT EXISTS messages_2025_06 PARTITION OF messages FOR VALUES FROM ('2025-06-01') TO ('2025-07-01')`,
+		`CREATE TABLE IF NOT EXISTS messages_2025_07 PARTITION OF messages FOR VALUES FROM ('2025-07-01') TO ('2025-08-01')`,
+		`CREATE TABLE IF NOT EXISTS messages_2025_08 PARTITION OF messages FOR VALUES FROM ('2025-08-01') TO ('2025-09-01')`,
+		`CREATE TABLE IF NOT EXISTS messages_2025_09 PARTITION OF messages FOR VALUES FROM ('2025-09-01') TO ('2025-10-01')`,
+		`CREATE TABLE IF NOT EXISTS messages_2025_10 PARTITION OF messages FOR VALUES FROM ('2025-10-01') TO ('2025-11-01')`,
+		`CREATE TABLE IF NOT EXISTS messages_2025_11 PARTITION OF messages FOR VALUES FROM ('2025-11-01') TO ('2025-12-01')`,
+		`CREATE TABLE IF NOT EXISTS messages_2025_12 PARTITION OF messages FOR VALUES FROM ('2025-12-01') TO ('2026-01-01')`,
+		// Default partition for future dates
+		`CREATE TABLE IF NOT EXISTS messages_default PARTITION OF messages DEFAULT`,
 		// ===== ADD COLUMNS IF NOT EXISTS (safe migrations) =====
 		// Explicitly ensure all columns exist (Postgres 9.6+ syntax)
 		`ALTER TABLE chats ADD COLUMN IF NOT EXISTS avatar_url TEXT`,
@@ -247,6 +269,13 @@ func Migrate(db *sql.DB) error {
 		`ALTER TABLE media ALTER COLUMN chat_id DROP NOT NULL`,
 		`ALTER TABLE posts ADD COLUMN IF NOT EXISTS signature TEXT`,
 		`ALTER TABLE devices ALTER COLUMN ip_address TYPE TEXT`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS signing_public_key TEXT`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`,
+		`ALTER TABLE chats ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`,
+		`ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`,
+		`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`,
+		`ALTER TABLE media ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`,
+		`ALTER TABLE posts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`,
 		`ALTER TABLE users ADD CONSTRAINT IF NOT EXISTS users_email_unique UNIQUE (email)`,
 		`CREATE TABLE IF NOT EXISTS key_history (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

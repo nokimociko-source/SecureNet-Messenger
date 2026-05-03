@@ -12,26 +12,27 @@ type User struct {
 	Email              string    `json:"email" db:"email"`
 	Username           string    `json:"username" db:"username"`
 	PublicKey          string    `json:"publicKey" db:"public_key"`
+	SigningPublicKey   string    `json:"signingPublicKey" db:"signing_public_key"`
 	Role               string    `json:"role" db:"role"` // user, moderator, admin
 	PasswordHash       string    `json:"-" db:"password_hash"`
 	Online             bool      `json:"online" db:"online"`
 	Avatar             string    `json:"avatar" db:"avatar"`
-	PhoneVisibility     string    `json:"phoneVisibility" db:"phone_visibility"`
+	PhoneVisibility    string    `json:"phoneVisibility" db:"phone_visibility"`
 	LastSeenVisibility string    `json:"lastSeenVisibility" db:"last_seen_visibility"`
-	AvatarVisibility    string    `json:"avatarVisibility" db:"avatar_visibility"`
+	AvatarVisibility   string    `json:"avatarVisibility" db:"avatar_visibility"`
 	LastSeenAt         time.Time `json:"lastSeenAt" db:"last_seen_at"`
 	// Notification Settings
-	NotifPrivate  bool `json:"notifPrivate" db:"notif_private"`
-	NotifGroups   bool `json:"notifGroups" db:"notif_groups"`
-	NotifChannels bool `json:"notifChannels" db:"notif_channels"`
-	NotifBadges   bool `json:"notifBadges" db:"notif_badges"`
-	NotifSounds   bool `json:"notifSounds" db:"notif_sounds"`
-	NotifReactions bool `json:"notifReactions" db:"notif_reactions"`
-	TotpEnabled    bool `json:"totpEnabled" db:"totp_enabled"`
-	TotpSecret     string `json:"-" db:"totp_secret"`
-	CreatedAt          time.Time `json:"createdAt" db:"created_at"`
-	UpdatedAt          time.Time `json:"updatedAt" db:"updated_at"`
-	TelegramID         int64     `json:"telegramId,omitempty" db:"telegram_id"`
+	NotifPrivate   bool      `json:"notifPrivate" db:"notif_private"`
+	NotifGroups    bool      `json:"notifGroups" db:"notif_groups"`
+	NotifChannels  bool      `json:"notifChannels" db:"notif_channels"`
+	NotifBadges    bool      `json:"notifBadges" db:"notif_badges"`
+	NotifSounds    bool      `json:"notifSounds" db:"notif_sounds"`
+	NotifReactions bool      `json:"notifReactions" db:"notif_reactions"`
+	TotpEnabled    bool      `json:"totpEnabled" db:"totp_enabled"`
+	TotpSecret     string    `json:"-" db:"totp_secret"`
+	CreatedAt      time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt      time.Time `json:"updatedAt" db:"updated_at"`
+	TelegramID     int64     `json:"telegramId,omitempty" db:"telegram_id"`
 }
 
 type Message struct {
@@ -39,11 +40,11 @@ type Message struct {
 	ChatID      uuid.UUID  `json:"chatId" db:"chat_id"`
 	SenderID    uuid.UUID  `json:"senderId" db:"sender_id"`
 	ReceiverID  uuid.UUID  `json:"receiverId" db:"receiver_id"`
-	Content     string     `json:"content" db:"content"` // Encrypted base64
-	Type        string     `json:"type" db:"type"`       // text, file, voice, image
-	Status      string     `json:"status" db:"status"`   // sent, delivered, read
+	Content     string     `json:"content" db:"content"`                     // Encrypted base64
+	Type        string     `json:"type" db:"type"`                           // text, file, voice, image
+	Status      string     `json:"status" db:"status"`                       // sent, delivered, read
 	ClientMsgID string     `json:"clientMsgId,omitempty" db:"client_msg_id"` // Idempotency key
-	MediaID     *uuid.UUID `json:"mediaId,omitempty" db:"media_id"`         // Reference to uploaded media
+	MediaID     *uuid.UUID `json:"mediaId,omitempty" db:"media_id"`          // Reference to uploaded media
 	CreatedAt   time.Time  `json:"createdAt" db:"created_at"`
 }
 
@@ -81,12 +82,12 @@ type ChatParticipant struct {
 }
 
 type Contact struct {
-	ID        uuid.UUID `json:"id" db:"id"`
-	UserID    uuid.UUID `json:"userId" db:"user_id"`
-	ContactID uuid.UUID `json:"contactId" db:"contact_id"`
-	Name      *string   `json:"name,omitempty" db:"name"`
-	IsFavorite bool     `json:"isFavorite" db:"is_favorite"`
-	IsBlocked  bool     `json:"isBlocked" db:"is_blocked"`
+	ID         uuid.UUID `json:"id" db:"id"`
+	UserID     uuid.UUID `json:"userId" db:"user_id"`
+	ContactID  uuid.UUID `json:"contactId" db:"contact_id"`
+	Name       *string   `json:"name,omitempty" db:"name"`
+	IsFavorite bool      `json:"isFavorite" db:"is_favorite"`
+	IsBlocked  bool      `json:"isBlocked" db:"is_blocked"`
 	CreatedAt  time.Time `json:"createdAt" db:"created_at"`
 }
 
@@ -104,31 +105,31 @@ type Report struct {
 
 // Device represents a registered device for Device Binding.
 type Device struct {
-	ID          uuid.UUID `json:"id" db:"id"`
-	UserID      uuid.UUID `json:"userId" db:"user_id"`
-	DeviceName  string    `json:"deviceName" db:"device_name"`
-	Fingerprint string    `json:"fingerprint" db:"fingerprint"` // SHA-256 of hardware info
-	Platform    string    `json:"platform" db:"platform"`       // web, android, windows, ios
-	UserAgent   string    `json:"userAgent" db:"user_agent"`
-	IPAddress   string    `json:"ipAddress" db:"ip_address"`
-	Trusted     bool      `json:"trusted" db:"trusted"`
-	LastUsedAt  time.Time `json:"lastUsedAt" db:"last_used_at"`
-	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
+	ID          uuid.UUID  `json:"id" db:"id"`
+	UserID      uuid.UUID  `json:"userId" db:"user_id"`
+	DeviceName  string     `json:"deviceName" db:"device_name"`
+	Fingerprint string     `json:"fingerprint" db:"fingerprint"` // SHA-256 of hardware info
+	Platform    string     `json:"platform" db:"platform"`       // web, android, windows, ios
+	UserAgent   string     `json:"userAgent" db:"user_agent"`
+	IPAddress   string     `json:"ipAddress" db:"ip_address"`
+	Trusted     bool       `json:"trusted" db:"trusted"`
+	LastUsedAt  time.Time  `json:"lastUsedAt" db:"last_used_at"`
+	CreatedAt   time.Time  `json:"createdAt" db:"created_at"`
 	RevokedAt   *time.Time `json:"revokedAt,omitempty" db:"revoked_at"`
 }
 
 // Media represents uploaded file/media metadata.
 type Media struct {
-	ID          uuid.UUID `json:"id" db:"id"`
+	ID          uuid.UUID  `json:"id" db:"id"`
 	UploaderID  uuid.UUID  `json:"uploaderId" db:"uploader_id"`
 	ChatID      *uuid.UUID `json:"chatId,omitempty" db:"chat_id"`
 	FileName    string     `json:"fileName" db:"file_name"`
-	FileSize    int64     `json:"fileSize" db:"file_size"`
-	MimeType    string    `json:"mimeType" db:"mime_type"`
-	StoragePath string    `json:"storagePath" db:"storage_path"`
-	Encrypted   bool      `json:"encrypted" db:"encrypted"`
-	Checksum    string    `json:"checksum" db:"checksum"` // SHA-256 of original
-	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
+	FileSize    int64      `json:"fileSize" db:"file_size"`
+	MimeType    string     `json:"mimeType" db:"mime_type"`
+	StoragePath string     `json:"storagePath" db:"storage_path"`
+	Encrypted   bool       `json:"encrypted" db:"encrypted"`
+	Checksum    string     `json:"checksum" db:"checksum"` // SHA-256 of original
+	CreatedAt   time.Time  `json:"createdAt" db:"created_at"`
 }
 
 // WebSocket message types
@@ -140,6 +141,7 @@ type WSMessage struct {
 	Content   interface{} `json:"content,omitempty"`
 	Timestamp int64       `json:"timestamp"`
 }
+
 // PreKey represents a one-time use key for X3DH.
 type PreKey struct {
 	ID        uuid.UUID `json:"id" db:"id"`
@@ -154,9 +156,9 @@ type PreKey struct {
 
 // KeyBundle represents the bundle needed to start an E2EE session.
 type KeyBundle struct {
-	IdentityKey string   `json:"identityKey"`
-	SignedKey   *PreKey  `json:"signedKey"`
-	OneTimeKey  *PreKey  `json:"oneTimeKey"`
+	IdentityKey string  `json:"identityKey"`
+	SignedKey   *PreKey `json:"signedKey"`
+	OneTimeKey  *PreKey `json:"oneTimeKey"`
 }
 
 // PushSubscription represents a Web Push notification subscription.
