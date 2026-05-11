@@ -53,41 +53,29 @@ func NewMediaService(mediaRepo repository.MediaRepository, auditSvc *AuditServic
 
 // UploadFile handles file upload, validates it, stores it, and records metadata.
 func (s *MediaService) UploadFile(ctx context.Context, file multipart.File, header *multipart.FileHeader, uploaderID, chatID uuid.UUID) (*models.Media, error) {
-	fmt.Printf("DEBUG: Starting UploadFile for chat %s, file %s\n", chatID, header.Filename)
-	// Validate file size
 	if header.Size > MaxFileSize {
-		fmt.Printf("DEBUG: File too large: %d bytes\n", header.Size)
 		return nil, fmt.Errorf("file too large: max %d bytes", MaxFileSize)
 	}
 
-	// Validate MIME type
 	mimeType := header.Header.Get("Content-Type")
 	if mimeType == "" {
 		mimeType = detectMimeType(header.Filename)
 	}
-	fmt.Printf("DEBUG: Detected MIME type: %s\n", mimeType)
 	if !AllowedMimeTypes[mimeType] {
-		fmt.Printf("DEBUG: Unsupported MIME type: %s\n", mimeType)
 		return nil, fmt.Errorf("unsupported file type: %s", mimeType)
 	}
 
-	// Generate unique storage path
 	mediaID := uuid.New()
 	ext := filepath.Ext(header.Filename)
 	storagePath := filepath.Join(UploadDir, chatID.String(), mediaID.String()+ext)
-	fmt.Printf("DEBUG: Storage path: %s\n", storagePath)
 
-	// Create directory if needed
 	dir := filepath.Dir(storagePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		fmt.Printf("DEBUG: Failed to create dir %s: %v\n", dir, err)
 		return nil, fmt.Errorf("create upload dir: %w", err)
 	}
 
-	// Create destination file
 	dst, err := os.Create(storagePath)
 	if err != nil {
-		fmt.Printf("DEBUG: Failed to create file %s: %v\n", storagePath, err)
 		return nil, fmt.Errorf("create file: %w", err)
 	}
 	defer dst.Close()
@@ -97,15 +85,12 @@ func (s *MediaService) UploadFile(ctx context.Context, file multipart.File, head
 	writer := io.MultiWriter(dst, hasher)
 
 	if _, err := io.Copy(writer, file); err != nil {
-		fmt.Printf("DEBUG: Failed to save file: %v\n", err)
 		os.Remove(storagePath)
 		return nil, fmt.Errorf("save file: %w", err)
 	}
 
 	checksum := fmt.Sprintf("%x", hasher.Sum(nil))
-	fmt.Printf("DEBUG: File saved, checksum: %s\n", checksum)
 
-	// Store metadata
 	media := &models.Media{
 		ID:          mediaID,
 		UploaderID:  uploaderID,
@@ -119,12 +104,10 @@ func (s *MediaService) UploadFile(ctx context.Context, file multipart.File, head
 	}
 
 	if err := s.mediaRepo.StoreMedia(ctx, media); err != nil {
-		fmt.Printf("DEBUG: Failed to store metadata: %v\n", err)
 		os.Remove(storagePath)
 		return nil, fmt.Errorf("store media metadata: %w", err)
 	}
 
-	fmt.Printf("DEBUG: Media upload complete: %s\n", mediaID)
 	return media, nil
 }
 
