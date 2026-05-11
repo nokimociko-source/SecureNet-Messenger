@@ -61,15 +61,15 @@ func normalizePEM(input string) string {
 	s = strings.ReplaceAll(s, "\\n", "\n")
 	s = strings.ReplaceAll(s, "\\r", "")
 
-	// 2. If it already contains the header, try to extract just the block
+	// 2. If it contains the header, extract it carefully
 	if strings.Contains(s, "-----BEGIN") {
 		start := strings.Index(s, "-----BEGIN")
 		end := strings.Index(s, "-----END")
 		if end > start {
-			// Find the end of the footer line
-			footerEnd := strings.Index(s[end:], "-----")
-			if footerEnd != -1 {
-				return s[start : end+footerEnd+5]
+			// Find the end of the footer line (the closing -----)
+			footerClosing := strings.Index(s[end+5:], "-----")
+			if footerClosing != -1 {
+				return s[start : end+5+footerClosing+5]
 			}
 		}
 		return s
@@ -85,9 +85,17 @@ func normalizePEM(input string) string {
 }
 
 func ParseRSAPrivateKey(pemString string) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode([]byte(normalizePEM(pemString)))
+	normalized := normalizePEM(pemString)
+	block, _ := pem.Decode([]byte(normalized))
 	if block == nil {
-		return nil, fmt.Errorf("failed to parse PEM block containing the key")
+		// Log the first and last 20 chars for debugging (safe)
+		startChars := ""
+		if len(normalized) > 20 { startChars = normalized[:20] }
+		endChars := ""
+		if len(normalized) > 20 { endChars = normalized[len(normalized)-20:] }
+		
+		return nil, fmt.Errorf("failed to parse JWT_PRIVATE_KEY (len:%d, start:%s, end:%s): failed to parse PEM block", 
+			len(normalized), startChars, endChars)
 	}
 
 	if key, err := x509.ParsePKCS1PrivateKey(block.Bytes); err == nil {
@@ -107,9 +115,10 @@ func ParseRSAPrivateKey(pemString string) (*rsa.PrivateKey, error) {
 }
 
 func ParseRSAPublicKey(pemString string) (*rsa.PublicKey, error) {
-	block, _ := pem.Decode([]byte(normalizePEM(pemString)))
+	normalized := normalizePEM(pemString)
+	block, _ := pem.Decode([]byte(normalized))
 	if block == nil {
-		return nil, fmt.Errorf("failed to parse PEM block containing the key")
+		return nil, fmt.Errorf("failed to parse RSA public key: failed to parse PEM block")
 	}
 
 	if key, err := x509.ParsePKIXPublicKey(block.Bytes); err == nil {
