@@ -14,7 +14,7 @@
 import { openDB, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'SecureNetVault';
-const DB_VERSION = 1;
+const DB_VERSION = 3;
 
 export interface StoredKeyPair {
   id: string;
