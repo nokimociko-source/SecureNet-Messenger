@@ -10,13 +10,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"securenet-backend/core/api"
-	"securenet-backend/core/auth"
-	"securenet-backend/core/config"
-	"securenet-backend/core/db"
-	"securenet-backend/core/repository/postgres"
-	"securenet-backend/core/services"
-	"securenet-backend/core/websocket"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/api"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/auth"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/config"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/db"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/repository/postgres"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/services"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/websocket"
 )
 
 func main() {

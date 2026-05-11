@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"securenet-backend/core/models"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/models"
 
 	"github.com/google/uuid"
 )

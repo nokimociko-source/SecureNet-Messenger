@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"securenet-backend/core/models"
-	"securenet-backend/core/utils"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/models"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/utils"
 
 	"github.com/google/uuid"
 )

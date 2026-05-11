@@ -12,8 +12,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 
-	"securenet-backend/core/models"
-	"securenet-backend/core/repository"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/models"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/repository"
 )
 
 const (

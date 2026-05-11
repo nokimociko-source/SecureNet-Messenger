@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"securenet-backend/core/models"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/models"
 
 	"cloud.google.com/go/spanner"
 	"github.com/google/uuid"

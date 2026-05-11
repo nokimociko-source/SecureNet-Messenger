@@ -7,7 +7,7 @@ import (
 
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/google/uuid"
-	"securenet-backend/core/config"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/config"
 )
 
 type NotificationService struct {

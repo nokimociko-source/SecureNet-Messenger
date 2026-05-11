@@ -13,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"securenet-backend/core/models"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/models"
 )
 
 // AuditService handles audit logging

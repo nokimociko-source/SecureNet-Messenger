@@ -6,9 +6,9 @@ import (
 	"errors"
 	"time"
 
-	"securenet-backend/core/auth"
-	"securenet-backend/core/models"
-	"securenet-backend/core/repository"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/auth"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/models"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/repository"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"

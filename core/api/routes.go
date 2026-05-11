@@ -17,12 +17,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
 
-	"securenet-backend/core/auth"
-	"securenet-backend/core/config"
-	"securenet-backend/core/models"
-	"securenet-backend/core/repository/postgres"
-	"securenet-backend/core/services"
-	"securenet-backend/core/websocket"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/auth"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/config"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/models"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/repository/postgres"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/services"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/websocket"
 )
 
 type updateInfo struct {

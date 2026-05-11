@@ -5,8 +5,8 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"securenet-backend/core/models"
-	"securenet-backend/core/repository"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/models"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/repository"
 
 	"github.com/google/uuid"
 )

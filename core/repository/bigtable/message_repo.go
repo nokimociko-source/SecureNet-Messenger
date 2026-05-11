@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"securenet-backend/core/models"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/models"
 
 	"cloud.google.com/go/bigtable"
 	"github.com/google/uuid"

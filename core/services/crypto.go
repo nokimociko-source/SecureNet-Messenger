@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"securenet-backend/core/models"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/models"
 
 	"github.com/google/uuid"
 )

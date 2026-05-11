@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"securenet-backend/core/models"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/models"
 	"time"
 
 	"github.com/gorilla/websocket"

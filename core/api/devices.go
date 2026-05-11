@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"securenet-backend/core/services"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"securenet-backend/core/services"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

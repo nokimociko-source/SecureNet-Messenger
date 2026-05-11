@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"securenet-backend/core/models"
+	"github.com/nokimociko-source/SecureNet-Messenger/core/models"
 
 	"github.com/google/uuid"
 )
