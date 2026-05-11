@@ -29,7 +29,7 @@ export default function SecurityView({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="flex-1 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col overflow-y-auto custom-scrollbar">
       {/* Header */}
       <div className="bg-black/30 backdrop-blur-lg border-b border-white/10 p-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">

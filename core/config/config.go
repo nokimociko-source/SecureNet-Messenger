@@ -9,6 +9,8 @@ import (
 var databaseURLKeys = []string{
 	"DATABASE_URL",
 	"POSTGRES_URL",
+	"PG_URL",
+	"VERCEL_POSTGRES_URL",
 	"POSTGRES_URL_NON_POOLING",
 	"POSTGRES_PRISMA_URL",
 	"SUPABASE_DB_URL",
@@ -23,6 +25,7 @@ type Config struct {
 	VAPIDPublicKey    string
 	VAPIDPrivateKey   string
 	TelegramBotToken  string
+	MasterKey         string
 }
 
 func Load() *Config {
@@ -36,6 +39,7 @@ func Load() *Config {
 		VAPIDPublicKey:    getEnv("VAPID_PUBLIC_KEY", ""),
 		VAPIDPrivateKey:   getEnv("VAPID_PRIVATE_KEY", ""),
 		TelegramBotToken:  getEnv("TELEGRAM_BOT_TOKEN", ""),
+		MasterKey:         getEnv("MASTER_KEY", "DANGER_INSECURE_DEFAULT_MASTER_KEY_32BYTES"),
 	}
 }
 
@@ -87,70 +91,38 @@ func normalizeDatabaseURL(raw string) string {
 		return ""
 	}
 
-	// Try direct parse first
-	parsed, err := url.Parse(raw)
-	if err == nil && (parsed.Scheme == "postgres" || parsed.Scheme == "postgresql") {
-		// Valid URL — ensure sslmode is set
-		q := parsed.Query()
-		if q.Get("sslmode") == "" {
-			q.Set("sslmode", "require")
-			parsed.RawQuery = q.Encode()
-			return parsed.String()
-		}
+	// Try direct parse. If it works, the URL is likely already safe.
+	if u, err := url.Parse(raw); err == nil && u.User != nil {
 		return raw
 	}
 
-	// URL parse failed — likely due to special characters in password (e.g. !@#$)
-	// Try to reconstruct with URL-encoded userinfo
-	// Format: postgres://user:password@host:port/dbname?params
-	if !strings.HasPrefix(raw, "postgres://") && !strings.HasPrefix(raw, "postgresql://") {
-		return raw
-	}
-
+	// Fix URLs with special characters in password
 	scheme := "postgres://"
 	if strings.HasPrefix(raw, "postgresql://") {
 		scheme = "postgresql://"
-	}
-	rest := raw[len(scheme):]
-
-	// Find the @ separator between userinfo and host
-	atIdx := strings.LastIndex(rest, "@")
-	if atIdx == -1 {
-		// No @ found — can't fix
+	} else if !strings.HasPrefix(raw, "postgres://") {
 		return raw
 	}
 
-	userinfo := rest[:atIdx]
-	hostPart := rest[atIdx+1:]
-
-	// Split user:password
-	colonIdx := strings.Index(userinfo, ":")
-	if colonIdx == -1 {
-		// No password — just reassemble
-		rebuilt := scheme + url.PathEscape(userinfo) + "@" + hostPart
-		return setDefaultSSLMode(rebuilt)
+	rawWithoutScheme := raw[len(scheme):]
+	atIdx := strings.LastIndex(rawWithoutScheme, "@")
+	if atIdx == -1 {
+		return raw
 	}
 
-	user := userinfo[:colonIdx]
-	password := userinfo[colonIdx+1:]
+	userinfoRaw := rawWithoutScheme[:atIdx]
+	hostPathQuery := rawWithoutScheme[atIdx+1:]
 
-	// URL-encode the password to handle special characters like !@#$%
-	encodedPassword := url.QueryEscape(password)
-
-	rebuilt := scheme + user + ":" + encodedPassword + "@" + hostPart
-	return setDefaultSSLMode(rebuilt)
-}
-
-func setDefaultSSLMode(dbURL string) string {
-	parsed, err := url.Parse(dbURL)
-	if err != nil {
-		return dbURL
+	var user, password string
+	if colonIdx := strings.Index(userinfoRaw, ":"); colonIdx != -1 {
+		user = userinfoRaw[:colonIdx]
+		password = userinfoRaw[colonIdx+1:]
+	} else {
+		user = userinfoRaw
 	}
-	q := parsed.Query()
-	if q.Get("sslmode") == "" {
-		q.Set("sslmode", "require")
-		parsed.RawQuery = q.Encode()
-		return parsed.String()
-	}
-	return dbURL
+
+	// Safely encode user and password
+	userInfo := url.UserPassword(user, password).String()
+	
+	return scheme + userInfo + "@" + hostPathQuery
 }

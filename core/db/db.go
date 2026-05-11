@@ -31,20 +31,34 @@ func Migrate(db *sql.DB) error {
 		// ===== CORE TABLES =====
 		`CREATE TABLE IF NOT EXISTS users (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			phone_number VARCHAR(20) UNIQUE NOT NULL,
-			email VARCHAR(100) UNIQUE,
+			phone_number VARCHAR(255) UNIQUE NOT NULL,
+			phone_hash VARCHAR(64) UNIQUE,
+			email VARCHAR(255) UNIQUE,
+			email_hash VARCHAR(64) UNIQUE,
 			username VARCHAR(50) NOT NULL,
 			public_key TEXT NOT NULL,
 			signing_public_key TEXT,
 			role VARCHAR(20) DEFAULT 'user',
 			password_hash VARCHAR(255) NOT NULL,
+			avatar TEXT,
 			online BOOLEAN DEFAULT false,
 			last_seen_at TIMESTAMP DEFAULT NOW(),
 			totp_secret VARCHAR(64),
 			totp_enabled BOOLEAN DEFAULT false,
+			phone_visibility VARCHAR(20) DEFAULT 'everyone',
+			last_seen_visibility VARCHAR(20) DEFAULT 'everyone',
+			avatar_visibility VARCHAR(20) DEFAULT 'everyone',
+			notif_private BOOLEAN DEFAULT true,
+			notif_groups BOOLEAN DEFAULT true,
+			notif_channels BOOLEAN DEFAULT true,
+			notif_badges BOOLEAN DEFAULT true,
+			notif_sounds BOOLEAN DEFAULT true,
+			notif_reactions BOOLEAN DEFAULT true,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW(),
-			deleted_at TIMESTAMP
+			deleted_at TIMESTAMP,
+			is_banned BOOLEAN DEFAULT false,
+			ban_reason TEXT
 		)`,
 		`CREATE TABLE IF NOT EXISTS chats (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -77,7 +91,7 @@ func Migrate(db *sql.DB) error {
 			read_at TIMESTAMP,
 			timestamp TIMESTAMP DEFAULT NOW(),
 			deleted_at TIMESTAMP
-		) PARTITION BY RANGE (timestamp)`,
+		)`,
 		`CREATE TABLE IF NOT EXISTS contacts (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -150,7 +164,9 @@ func Migrate(db *sql.DB) error {
 			ip_address INET,
 			user_agent TEXT,
 			timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-			severity VARCHAR(20) NOT NULL DEFAULT 'low'
+			severity VARCHAR(20) NOT NULL DEFAULT 'low',
+			previous_hash TEXT,
+			log_hash TEXT
 		)`,
 		`CREATE TABLE IF NOT EXISTS push_subscriptions (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

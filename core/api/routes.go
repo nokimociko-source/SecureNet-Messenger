@@ -37,7 +37,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 	auditService := services.NewAuditService(db)
 
 	// Initialize repositories
-	userRepo := postgres.NewUserRepo(db)
+	userRepo := postgres.NewUserRepo(db, []byte(cfg.MasterKey))
 	chatRepo := postgres.NewChatRepo(db)
 	deviceRepo := postgres.NewDeviceRepo(db)
 	mediaRepo := postgres.NewMediaRepo(db)
@@ -267,6 +267,26 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			}
 
 			c.Data(http.StatusOK, "application/json", auth)
+		})
+
+		authGroup.POST("/privacy", authMiddleware(publicKey), func(c *gin.Context) {
+			var req struct {
+				PhoneVisibility    string `json:"phoneVisibility"`
+				LastSeenVisibility string `json:"lastSeenVisibility"`
+				AvatarVisibility   string `json:"avatarVisibility"`
+			}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			userID := c.GetString("userId")
+			_, err := db.Exec(`UPDATE users SET phone_visibility = $1, last_seen_visibility = $2, avatar_visibility = $3 WHERE id = $4`,
+				req.PhoneVisibility, req.LastSeenVisibility, req.AvatarVisibility, userID)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"status": "updated"})
 		})
 
 		authGroup.POST("/push-subscription", authMiddleware(publicKey), func(c *gin.Context) {
@@ -873,6 +893,112 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 		RegisterGroupRoutes(authorized, chatSvc)
 		RegisterDeviceRoutes(authorized, deviceSvc)
 		RegisterMediaRoutes(authorized, mediaSvc, chatSvc)
+		// ====== Admin + Audit Routes (admin role required) ======
+		admin := authorized.Group("/")
+		admin.Use(AdminOnlyMiddleware())
+		{
+			admin.GET("/audit/logs", func(c *gin.Context) {
+				filter := models.AuditFilter{Limit: 50}
+				if v := c.Query("limit"); v != "" {
+					if n, err := parseInt(v); err == nil && n > 0 && n <= 500 {
+						filter.Limit = n
+					}
+				}
+				entries, err := auditService.GetAuditLog(filter)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+				c.JSON(http.StatusOK, entries)
+			})
+
+			admin.GET("/audit/stats", func(c *gin.Context) {
+				stats, err := auditService.GetStats(c.Request.Context())
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+				c.JSON(http.StatusOK, stats)
+			})
+
+			admin.GET("/audit/activity/weekly", func(c *gin.Context) {
+				activity, err := auditService.GetWeeklyActivity(c.Request.Context())
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+				c.JSON(http.StatusOK, activity)
+			})
+
+			admin.GET("/admin/reports", func(c *gin.Context) {
+				rows, err := db.Query(`
+					SELECT r.id, r.reason, r.status, r.created_at,
+					       u1.username as reporter_name, u2.username as target_name,
+					       r.target_id
+					FROM reports r
+					JOIN users u1 ON r.reporter_id = u1.id
+					JOIN users u2 ON r.target_id = u2.id
+					ORDER BY r.created_at DESC LIMIT 100`)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+				defer rows.Close()
+				var results []gin.H
+				for rows.Next() {
+					var id, reason, status, reporterName, targetName, targetID string
+					var createdAt time.Time
+					rows.Scan(&id, &reason, &status, &createdAt, &reporterName, &targetName, &targetID)
+					results = append(results, gin.H{
+						"id": id, "reason": reason, "status": status,
+						"createdAt": createdAt, "reporterName": reporterName,
+						"targetName": targetName, "targetId": targetID,
+					})
+				}
+				c.JSON(http.StatusOK, results)
+			})
+
+			admin.PATCH("/admin/reports/:id", func(c *gin.Context) {
+				var req struct {
+					Status     string `json:"status"`
+					Resolution string `json:"resolution"`
+				}
+				_ = c.ShouldBindJSON(&req)
+				_, err := db.Exec(`UPDATE reports SET status = $1, resolution = $2, resolved_at = NOW() WHERE id = $3`,
+					req.Status, req.Resolution, c.Param("id"))
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+				c.JSON(http.StatusOK, gin.H{"message": "Report updated"})
+			})
+			admin.DELETE("/admin/audit/cleanup", func(c *gin.Context) {
+				err := auditService.CleanupOldAuditLogs(c.Request.Context(), 0) // 0 = all
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					return
+				}
+				c.JSON(http.StatusOK, gin.H{"message": "Audit logs cleared"})
+			})
+
+			admin.DELETE("/admin/media/cache", func(c *gin.Context) {
+				// Simple implementation: clear uploads folder
+				os.RemoveAll("./uploads")
+				os.Mkdir("./uploads", 0755)
+				c.JSON(http.StatusOK, gin.H{"message": "Media cache cleared"})
+			})
+		}
+	}
+}
+
+func AdminOnlyMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role := c.GetString("role")
+		if role != "admin" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Admin role required"})
+			return
+		}
+		c.Next()
 	}
 }
 

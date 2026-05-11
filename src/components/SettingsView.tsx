@@ -548,7 +548,7 @@ export default function SettingsView({
     return (
       <div className="flex-1 bg-[#0a0a0a] flex flex-col h-full animate-in slide-in-from-right duration-300">
         {renderHeader('Мой профиль')}
-        <div className="max-w-2xl mx-auto w-full p-6 space-y-8 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 max-w-2xl mx-auto w-full p-6 space-y-8 overflow-y-auto custom-scrollbar">
           <div className="flex flex-col items-center gap-6 py-8">
             <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
               {renderAvatar("w-32 h-32", "text-5xl", avatarPreview)}
@@ -584,7 +584,7 @@ export default function SettingsView({
     return (
       <div className="flex-1 bg-[#0a0a0a] flex flex-col h-full animate-in slide-in-from-right duration-300">
         {renderHeader('Безопасность')}
-        <div className="max-w-2xl mx-auto w-full p-6 space-y-8">
+        <div className="flex-1 max-w-2xl mx-auto w-full p-6 space-y-8 overflow-y-auto custom-scrollbar">
           <SectionTitle>Защита доступа</SectionTitle>
           <div className="bg-white/2 rounded-[28px] border border-white/5 overflow-hidden shadow-xl">
             <SettingItem icon={KeyRound} title="Двухэтапная аутентификация" subtitle={currentUser.totp_enabled ? "Включена" : "Выключена"} onClick={() => setActiveTab('2fa')} />
@@ -691,7 +691,7 @@ export default function SettingsView({
     return (
       <div className="flex-1 bg-[#0a0a0a] flex flex-col h-full animate-in slide-in-from-right duration-300">
         {renderHeader('Уведомления')}
-        <div className="max-w-2xl mx-auto w-full p-6 space-y-8">
+        <div className="flex-1 max-w-2xl mx-auto w-full p-6 space-y-8 overflow-y-auto custom-scrollbar">
            <div className="p-6 bg-white/2 rounded-[32px] border border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-4">
                  <div className="p-4 bg-purple-500/20 rounded-2xl text-purple-400"><Bell size={28} /></div>
@@ -724,7 +724,7 @@ export default function SettingsView({
     return (
       <div className="flex-1 bg-[#0a0a0a] flex flex-col h-full animate-in slide-in-from-right duration-300">
         {renderHeader('Данные и память')}
-        <div className="max-w-2xl mx-auto w-full p-6 space-y-8">
+        <div className="flex-1 max-w-2xl mx-auto w-full p-6 space-y-8 overflow-y-auto custom-scrollbar">
            <SectionTitle>Автозагрузка медиа</SectionTitle>
            <div className="bg-white/2 rounded-[28px] border border-white/5 overflow-hidden shadow-xl">
               <SettingItem icon={Smartphone} title="Через мобильную сеть" showChevron={false} rightElement={<ToggleSwitch active={dataSettings.autoDownloadMobile} onClick={() => updateDataSetting('autoDownloadMobile')} />} />
@@ -745,7 +745,7 @@ export default function SettingsView({
     return (
       <div className="flex-1 bg-[#0a0a0a] flex flex-col h-full animate-in slide-in-from-right duration-300">
         {renderHeader('Изменение пароля')}
-        <div className="max-w-md mx-auto w-full p-6">
+        <div className="flex-1 max-w-md mx-auto w-full p-6 overflow-y-auto custom-scrollbar">
            <PasswordChange onChangePassword={handleChangePassword} />
         </div>
       </div>
@@ -756,7 +756,7 @@ export default function SettingsView({
     return (
       <div className="flex-1 bg-[#0a0a0a] flex flex-col h-full animate-in slide-in-from-right duration-300">
         {renderHeader('2FA Защита')}
-        <div className="max-w-md mx-auto w-full p-6">
+        <div className="flex-1 max-w-md mx-auto w-full p-6 overflow-y-auto custom-scrollbar">
            <TwoFactorSetup onSetup={handleSetup2FA} onEnable={handleEnable2FA} onClose={() => setActiveTab('security')} />
         </div>
       </div>
@@ -767,7 +767,7 @@ export default function SettingsView({
     return (
       <div className="flex-1 bg-[#0a0a0a] flex flex-col h-full animate-in slide-in-from-right duration-300">
         {renderHeader('Код-пароль')}
-        <div className="max-w-md mx-auto w-full p-6 py-12">
+        <div className="flex-1 max-w-md mx-auto w-full p-6 py-12 overflow-y-auto custom-scrollbar">
            <PasscodeSetup 
               onSave={(code) => {
                  localStorage.setItem('app_passcode', btoa(code));

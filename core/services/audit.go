@@ -1,10 +1,13 @@
 package services
 
 import (
+	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"strings"
+	"log"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -23,14 +26,13 @@ func NewAuditService(db *sql.DB) *AuditService {
 	return &AuditService{db: db}
 }
 
-// LogAction logs an audit action
+// LogAction logs an audit action with chaining (immutability)
 func (s *AuditService) LogAction(userID uuid.UUID, action, resource string, resourceID *uuid.UUID, details map[string]interface{}, ipAddress, userAgent string) error {
 	severity := s.determineSeverity(action)
 
-	query := `
-		INSERT INTO audit_log (user_id, action, resource, resource_id, details, ip_address, user_agent, severity)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`
+	// 1. Get the last log's hash for chaining
+	var prevHash string
+	_ = s.db.QueryRow(`SELECT log_hash FROM audit_log ORDER BY timestamp DESC LIMIT 1`).Scan(&prevHash)
 
 	var detailsJSON []byte
 	var err error
@@ -43,7 +45,19 @@ func (s *AuditService) LogAction(userID uuid.UUID, action, resource string, reso
 		detailsJSON = []byte("{}")
 	}
 
-	_, err = s.db.Exec(query, userID, action, resource, resourceID, string(detailsJSON), ipAddress, userAgent, severity)
+	// 2. Calculate current log hash
+	content := fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s|%s|%s", 
+		userID, action, resource, resourceID, string(detailsJSON), ipAddress, userAgent, severity, prevHash)
+	h := sha256.New()
+	h.Write([]byte(content))
+	currentHash := hex.EncodeToString(h.Sum(nil))
+
+	query := `
+		INSERT INTO audit_log (user_id, action, resource, resource_id, details, ip_address, user_agent, severity, previous_hash, log_hash)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	`
+
+	_, err = s.db.Exec(query, userID, action, resource, resourceID, string(detailsJSON), ipAddress, userAgent, severity, prevHash, currentHash)
 	if err != nil {
 		return fmt.Errorf("failed to log audit action: %w", err)
 	}
@@ -136,11 +150,14 @@ func (s *AuditService) GetAuditLog(filter models.AuditFilter) ([]models.AuditLog
 			&entry.Severity,
 		)
 		if err != nil {
-			continue // Skip invalid entries
+			log.Printf("[audit] scan error: %v", err)
+			continue
 		}
 
 		if len(detailsJSON) > 0 {
-			json.Unmarshal(detailsJSON, &entry.Details)
+			if jsonErr := json.Unmarshal(detailsJSON, &entry.Details); jsonErr != nil {
+				log.Printf("[audit] details unmarshal error for entry %s: %v", entry.ID, jsonErr)
+			}
 		}
 
 		entries = append(entries, entry)
@@ -237,18 +254,99 @@ func GetClientInfo(c *gin.Context) (string, string) {
 	return ipAddress, userAgent
 }
 
-// determineSeverity assigns severity level based on action
+// determineSeverity assigns severity level based on action.
+// Uses exact constant matching first, falls back to keyword heuristics.
 func (s *AuditService) determineSeverity(action string) string {
-	switch {
-	case strings.Contains(action, "delete"), strings.Contains(action, "failed"):
-		return models.SeverityHigh
-	case strings.Contains(action, "login"), strings.Contains(action, "password"), strings.Contains(action, "2fa"):
-		return models.SeverityMedium
-	case strings.Contains(action, "block"), strings.Contains(action, "admin"), strings.Contains(action, "permission"):
-		return models.SeverityHigh
-	case strings.Contains(action, "account_deleted"):
+	// Critical — irreversible or privilege-escalation actions
+	switch action {
+	case models.AuditActionAccountDeleted,
+		models.AuditActionPermissionChanged,
+		"ban_user", "unban_user",
+		"all_other_sessions_terminated":
 		return models.SeverityCritical
-	default:
-		return models.SeverityLow
 	}
+
+	// High — security-sensitive but recoverable
+	switch action {
+	case models.AuditActionLoginFailed,
+		models.AuditActionUserBlocked,
+		models.AuditActionUserUnblocked,
+		"new_device_detected", "device_trusted":
+		return models.SeverityHigh
+	}
+
+	// Medium — account and session changes
+	switch action {
+	case models.AuditActionLogin,
+		models.AuditActionLogout,
+		models.AuditActionPasswordChange,
+		models.AuditAction2FAEnabled,
+		models.AuditAction2FADisabled,
+		"registered":
+		return models.SeverityMedium
+	}
+
+	// Low — routine operations
+	return models.SeverityLow
+}
+func (s *AuditService) GetStats(ctx context.Context) (map[string]interface{}, error) {
+	var totalUsers int
+	err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&totalUsers)
+	if err != nil {
+		return nil, err
+	}
+
+	var messagesToday int
+	err = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM messages WHERE timestamp > NOW() - INTERVAL '24 hours'").Scan(&messagesToday)
+	if err != nil {
+		messagesToday = 0
+	}
+
+	// Active connections is estimated from users online in the last 5 minutes
+	var activeConnections int
+	err = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users WHERE online = true OR last_seen_at > NOW() - INTERVAL '5 minutes'").Scan(&activeConnections)
+	if err != nil {
+		activeConnections = 0
+	}
+
+	return map[string]interface{}{
+		"totalUsers":        totalUsers,
+		"activeConnections": activeConnections,
+		"messagesToday":     messagesToday,
+	}, nil
+}
+
+func (s *AuditService) GetWeeklyActivity(ctx context.Context) (map[string]interface{}, error) {
+	query := `
+		SELECT 
+			TO_CHAR(d.day, 'Dy') as day_label,
+			COUNT(m.id) as msg_count
+		FROM (
+			SELECT generate_series(NOW() - INTERVAL '6 days', NOW(), '1 day')::date AS day
+		) d
+		LEFT JOIN messages m ON m.timestamp::date = d.day
+		GROUP BY d.day
+		ORDER BY d.day
+	`
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var labels []string
+	var values []int
+	for rows.Next() {
+		var label string
+		var count int
+		if err := rows.Scan(&label, &count); err == nil {
+			labels = append(labels, label)
+			values = append(values, count)
+		}
+	}
+
+	return map[string]interface{}{
+		"labels": labels,
+		"values": values,
+	}, nil
 }
