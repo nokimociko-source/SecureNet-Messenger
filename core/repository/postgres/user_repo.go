@@ -20,10 +20,16 @@ type UserRepo struct {
 	masterKey []byte
 }
 
-func NewUserRepo(db *sql.DB, masterKey string) *UserRepo {
-	// Derive a 32-byte key using SHA-256
-	hash := sha256.Sum256([]byte(masterKey))
-	return &UserRepo{db: db, masterKey: hash[:]}
+func NewUserRepo(db *sql.DB, masterKey []byte) *UserRepo {
+	// If the key is not 32 bytes, hash it to ensure it is
+	var key []byte
+	if len(masterKey) != 32 {
+		h := sha256.Sum256(masterKey)
+		key = h[:]
+	} else {
+		key = masterKey
+	}
+	return &UserRepo{db: db, masterKey: key}
 }
 
 func (r *UserRepo) decryptUserPII(u *models.User) {

@@ -33,6 +33,7 @@ type User struct {
 	CreatedAt      time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt      time.Time `json:"updatedAt" db:"updated_at"`
 	TelegramID     int64     `json:"telegramId,omitempty" db:"telegram_id"`
+	Bio            string    `json:"bio" db:"bio"`
 }
 
 type Message struct {

@@ -58,7 +58,8 @@ func Migrate(db *sql.DB) error {
 			updated_at TIMESTAMP DEFAULT NOW(),
 			deleted_at TIMESTAMP,
 			is_banned BOOLEAN DEFAULT false,
-			ban_reason TEXT
+			ban_reason TEXT,
+			bio TEXT DEFAULT ''
 		)`,
 		`CREATE TABLE IF NOT EXISTS chats (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -286,6 +287,7 @@ func Migrate(db *sql.DB) error {
 		`ALTER TABLE posts ADD COLUMN IF NOT EXISTS signature TEXT`,
 		`ALTER TABLE devices ALTER COLUMN ip_address TYPE TEXT`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS signing_public_key TEXT`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT ''`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`,
 		`ALTER TABLE chats ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`,
 		`ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`,
