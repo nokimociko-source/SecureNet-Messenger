@@ -1,4 +1,4 @@
-module securenet-backend
+module github.com/nokimociko-source/SecureNet-Messenger
 
 go 1.25.0
 
