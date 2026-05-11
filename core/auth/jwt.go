@@ -66,10 +66,49 @@ func normalizePEM(input string) string {
 		start := strings.Index(s, "-----BEGIN")
 		end := strings.Index(s, "-----END")
 		if end > start {
-			// Find the end of the footer line (the closing -----)
-			footerClosing := strings.Index(s[end+5:], "-----")
-			if footerClosing != -1 {
-				return s[start : end+5+footerClosing+5]
+			// Find the actual start of the base64 content (after the first footer line)
+			headerEnd := strings.Index(s[start:], "-----")
+			if headerEnd != -1 {
+				headerEnd += start + 5
+				headerClosing := strings.Index(s[headerEnd:], "-----")
+				if headerClosing != -1 {
+					headerClosing += headerEnd + 5
+					
+					// Find the start of the footer
+					footerStart := end
+					
+					// Extract base64 content and remove all whitespace
+					base64Content := s[headerClosing:footerStart]
+					base64Content = strings.Map(func(r rune) rune {
+						if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '+' || r == '/' || r == '=' {
+							return r
+						}
+						return -1
+					}, base64Content)
+					
+					// Reconstruct with proper headers and 64-char wrapping
+					var builder strings.Builder
+					// Extract header type
+					headerLine := s[start:headerClosing]
+					footerLine := s[end:]
+					closingIdx := strings.Index(footerLine[5:], "-----")
+					if closingIdx != -1 {
+						footerLine = footerLine[:5+closingIdx+5]
+					}
+					
+					builder.WriteString(headerLine)
+					builder.WriteString("\n")
+					for i := 0; i < len(base64Content); i += 64 {
+						endIdx := i + 64
+						if endIdx > len(base64Content) {
+							endIdx = len(base64Content)
+						}
+						builder.WriteString(base64Content[i:endIdx])
+						builder.WriteString("\n")
+					}
+					builder.WriteString(footerLine)
+					return builder.String()
+				}
 			}
 		}
 		return s
