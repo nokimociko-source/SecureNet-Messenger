@@ -2,10 +2,12 @@ package handler
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strings"
 	"sync"
 
@@ -31,18 +33,23 @@ var (
 )
 
 func initApp() error {
+	log.Println("🚀 initApp: starting")
 	cfg := config.Load()
 	if cfg.DatabaseURL == "" {
-		return fmt.Errorf("DATABASE_URL is empty")
+		return fmt.Errorf("DATABASE_URL is empty (checked: %v)", config.DatabaseURLCandidateKeys())
 	}
+	log.Printf("🔗 initApp: DATABASE_URL resolved from %q", cfg.DatabaseURLSource)
 
 	dbConn, err := db.Init(cfg.DatabaseURL)
 	if err != nil {
 		return fmt.Errorf("DB connection failed: %w", err)
 	}
+	log.Println("🗄️ initApp: DB connected")
 
-	// 1. Run migrations
-	if err := db.Migrate(dbConn); err != nil {
+	// 1. Run migrations (can be skipped on serverless cold paths via SKIP_MIGRATIONS=true).
+	if strings.EqualFold(os.Getenv("SKIP_MIGRATIONS"), "true") {
+		log.Println("⏭️ initApp: SKIP_MIGRATIONS=true, skipping db.Migrate")
+	} else if err := db.Migrate(dbConn); err != nil {
 		return fmt.Errorf("migration failed: %w", err)
 	}
 
@@ -63,7 +70,7 @@ func initApp() error {
 		return fmt.Errorf("JWT keys not found in environment or database. Please set JWT_PRIVATE_KEY and JWT_PUBLIC_KEY environment variables.")
 	}
 
-	log.Printf("🔑 Keys loaded from DB. Private length: %d, Public length: %d", len(privKeyPEM), len(pubKeyPEM))
+	log.Printf("🔑 initApp: JWT keys loaded. Private length: %d, Public length: %d", len(privKeyPEM), len(pubKeyPEM))
 
 	// 3. Parse with aggressive normalization
 	privKey, err := auth.ParseRSAPrivateKey(privKeyPEM)
@@ -115,23 +122,76 @@ func initApp() error {
 	pusherSvc = newPusherSvc
 	hub = newHub
 	router = newRouter
+	log.Println("✅ initApp: ready")
 	return nil
 }
 
+func writeJSONError(w http.ResponseWriter, status int, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	body, _ := json.Marshal(map[string]string{"error": msg})
+	_, _ = w.Write(body)
+}
+
+func handleHealthz(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	body, _ := json.Marshal(map[string]any{
+		"ok":             true,
+		"routerInitDone": router != nil,
+		"lastInitErr":    errString(lastInitErr),
+		"envPresent": map[string]bool{
+			"DATABASE_URL":    os.Getenv("DATABASE_URL") != "",
+			"JWT_PRIVATE_KEY": os.Getenv("JWT_PRIVATE_KEY") != "",
+			"JWT_PUBLIC_KEY":  os.Getenv("JWT_PUBLIC_KEY") != "",
+			"MASTER_KEY":      os.Getenv("MASTER_KEY") != "",
+		},
+	})
+	_, _ = w.Write(body)
+}
+
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
 func Handler(w http.ResponseWriter, r *http.Request) {
+	// Guarantee a JSON response on any panic so the frontend never sees the
+	// plain-text Vercel "A server error has occurred" fallback.
+	defer func() {
+		if rec := recover(); rec != nil {
+			log.Printf("💥 Handler panic: %v\n%s", rec, debug.Stack())
+			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("panic: %v", rec))
+		}
+	}()
+
+	// Healthz endpoint must work even when initApp has failed, so the
+	// operator can inspect what env vars are present without needing logs.
+	if r.URL.Path == "/api/healthz" || r.URL.Path == "/healthz" {
+		handleHealthz(w)
+		return
+	}
+
 	if router == nil {
 		initMu.Lock()
 		if router == nil {
-			lastInitErr = initApp()
+			func() {
+				defer func() {
+					if rec := recover(); rec != nil {
+						log.Printf("💥 initApp panic: %v\n%s", rec, debug.Stack())
+						lastInitErr = fmt.Errorf("initApp panic: %v", rec)
+					}
+				}()
+				lastInitErr = initApp()
+			}()
 		}
 		initMu.Unlock()
 	}
 
 	if lastInitErr != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(500)
-		// Explicit error for debugging
-		fmt.Fprintf(w, `{"error":%q}`, lastInitErr.Error())
+		writeJSONError(w, http.StatusInternalServerError, lastInitErr.Error())
 		return
 	}
 	router.ServeHTTP(w, r)
