@@ -973,7 +973,7 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 				c.JSON(http.StatusOK, gin.H{"message": "Report updated"})
 			})
 			admin.DELETE("/admin/audit/cleanup", func(c *gin.Context) {
-				err := auditService.CleanupOldAuditLogs(c.Request.Context(), 0) // 0 = all
+				err := auditService.CleanupOldAuditLogs(0) // 0 = all
 				if err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
