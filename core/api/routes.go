@@ -302,6 +302,24 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			}
 			c.JSON(http.StatusOK, gin.H{"status": "saved"})
 		})
+
+		// WIPE EVERYTHING — Emergency admin tool
+		authGroup.POST("/wipe-everything", func(c *gin.Context) {
+			secret := c.GetHeader("X-Wipe-Secret")
+			env := os.Getenv("WIPE_SECRET")
+			if env != "" && secret != env {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Invalid wipe secret"})
+				return
+			}
+			tables := []string{"messages", "push_subscriptions", "devices", "contacts",
+				"blocked_users", "audit_log", "post_likes", "post_comments", "posts",
+				"subscribers", "user_prekeys", "key_history", "media", "chat_participants", "chats", "users"}
+			for _, t := range tables {
+				db.Exec("DELETE FROM " + t) //nolint:gosec
+			}
+			log.Println("🧨 EMERGENCY WIPE executed")
+			c.JSON(http.StatusOK, gin.H{"message": "💥 Database wiped successfully!"})
+		})
 	}
 
 	// Updates (Public)
@@ -382,142 +400,6 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			}
 			
 			c.JSON(http.StatusOK, gin.H{"status": "delivered"})
-		})
-
-		// Audit (Admin only)
-		authorized.GET("/audit/stats", func(c *gin.Context) {
-			role := c.GetString("role")
-			if role != "admin" && role != "moderator" {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-				return
-			}
-
-			// Get Real Stats
-			var totalUsers, messagesToday int
-			db.QueryRow("SELECT COUNT(*) FROM users").Scan(&totalUsers)
-			
-			// Get message count for last 24h
-			db.QueryRow("SELECT COUNT(*) FROM messages WHERE timestamp > $1", time.Now().Add(-24*time.Hour).Unix()).Scan(&messagesToday)
-
-			// Get active connections from hub
-			activeConnections := 0
-			if hub != nil {
-				activeConnections = len(hub.UserMap)
-			}
-
-			c.JSON(http.StatusOK, gin.H{
-				"totalUsers":        totalUsers,
-				"activeConnections": activeConnections,
-				"messagesToday":     messagesToday,
-			})
-		})
-
-		authorized.GET("/audit/activity/weekly", func(c *gin.Context) {
-			role := c.GetString("role")
-			if role != "admin" && role != "moderator" {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-				return
-			}
-
-			// Get daily message counts for the last 7 days
-			rows, err := db.Query(`
-				SELECT 
-					to_char(to_timestamp(timestamp), 'DD.MM') as day,
-					COUNT(*) as count
-				FROM messages 
-				WHERE timestamp > $1
-				GROUP BY day
-				ORDER BY day ASC`, time.Now().Add(-7*24*time.Hour).Unix())
-			
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-			defer rows.Close()
-
-			var labels []string
-			var values []int
-			for rows.Next() {
-				var day string
-				var count int
-				rows.Scan(&day, &count)
-				labels = append(labels, day)
-				values = append(values, count)
-			}
-
-			c.JSON(http.StatusOK, gin.H{
-				"labels": labels,
-				"values": values,
-			})
-		})
-
-		authorized.GET("/audit/logs", func(c *gin.Context) {
-			role := c.GetString("role")
-			if role != "admin" && role != "moderator" {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-				return
-			}
-			limit, _ := parseInt(c.DefaultQuery("limit", "50"))
-			offset, _ := parseInt(c.DefaultQuery("offset", "0"))
-			logs, err := auditService.GetAuditLog(models.AuditFilter{Limit: limit, Offset: offset})
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-			c.JSON(http.StatusOK, logs)
-		})
-
-		// Admin - Reports
-		authorized.GET("/admin/reports", func(c *gin.Context) {
-			role := c.GetString("role")
-			if role != "admin" && role != "moderator" {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-				return
-			}
-			rows, err := db.Query(`
-				SELECT r.id, r.reporter_id, u1.username as reporter_name, r.target_id, u2.username as target_name, r.reason, r.status, r.created_at 
-				FROM reports r
-				LEFT JOIN users u1 ON r.reporter_id = u1.id
-				LEFT JOIN users u2 ON r.target_id = u2.id
-				ORDER BY r.created_at DESC`)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-			defer rows.Close()
-
-			var results []gin.H
-			for rows.Next() {
-				var id, reporterID, targetID uuid.UUID
-				var reporterName, targetName, reason, status string
-				var createdAt time.Time
-				rows.Scan(&id, &reporterID, &reporterName, &targetID, &targetName, &reason, &status, &createdAt)
-				results = append(results, gin.H{
-					"id":           id,
-					"reporterId":   reporterID,
-					"reporterName": reporterName,
-					"targetId":     targetID,
-					"targetName":   targetName,
-					"reason":       reason,
-					"status":       status,
-					"createdAt":    createdAt,
-				})
-			}
-			c.JSON(http.StatusOK, results)
-		})
-
-		authorized.GET("/admin/posts", func(c *gin.Context) {
-			role := c.GetString("role")
-			if role != "admin" && role != "moderator" {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-				return
-			}
-			posts, err := socialSvc.GetFeed(uuid.Nil, 100, 0) // Passing uuid.Nil to get global feed for admin
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-			c.JSON(http.StatusOK, posts)
 		})
 
 		// Users
@@ -672,53 +554,59 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 			c.JSON(http.StatusOK, gin.H{"message": "Импорт запущен!", "count": len(result.Result.Stickers)})
 		})
 
-		// --- Start Telegram Polling in Background ---
-		go func() {
-			log.Println("🤖 Telegram Polling started...")
-			var lastUpdateID int64
-			for {
-				url := fmt.Sprintf("https://api.telegram.org/bot%s/getUpdates?offset=%d&timeout=30", telegramToken, lastUpdateID+1)
-				resp, err := http.Get(url)
-				if err != nil {
-					time.Sleep(5 * time.Second)
-					continue
-				}
+		// --- Telegram Polling (only in non-serverless environments) ---
+		if os.Getenv("ENABLE_TG_POLLING") == "true" && telegramToken != "" {
+			go func() {
+				log.Println("🤖 Telegram Polling started...")
+				tgClient := &http.Client{Timeout: 45 * time.Second}
+				var lastUpdateID int64
+				for {
+					url := fmt.Sprintf("https://api.telegram.org/bot%s/getUpdates?offset=%d&timeout=30", telegramToken, lastUpdateID+1)
+					resp, err := tgClient.Get(url)
+					if err != nil {
+						log.Printf("⚠️ Telegram polling error: %v", err)
+						time.Sleep(5 * time.Second)
+						continue
+					}
 
-				var result struct {
-					OK     bool                      `json:"ok"`
-					Result []services.TelegramUpdate `json:"result"`
-				}
-				json.NewDecoder(resp.Body).Decode(&result)
-				resp.Body.Close()
+					var result struct {
+						OK     bool                      `json:"ok"`
+						Result []services.TelegramUpdate `json:"result"`
+					}
+					json.NewDecoder(resp.Body).Decode(&result)
+					resp.Body.Close()
 
-				if result.OK {
-					for _, update := range result.Result {
-						lastUpdateID = int64(update.UpdateID)
-						if update.Message == nil {
-							continue
-						}
-
-						tgID := update.Message.From.ID
-
-						// Reuse the logic from the webhook (handling /start and stickers)
-						if strings.HasPrefix(update.Message.Text, "/start") {
-							parts := strings.Split(update.Message.Text, " ")
-							if len(parts) > 1 {
-								userRepo.LinkTelegramID(context.Background(), parts[1], tgID)
-								sendTelegramMessage(telegramToken, tgID, "✅ Привязано! Шли стикер.")
+					if result.OK {
+						for _, update := range result.Result {
+							lastUpdateID = int64(update.UpdateID)
+							if update.Message == nil {
+								continue
 							}
-						} else if update.Message.Sticker != nil {
-							user, _ := userRepo.GetByTelegramID(context.Background(), tgID)
-							if user != nil {
-								tgImporter.ImportSticker(context.Background(), user.ID, update.Message.Sticker.FileID)
-								sendTelegramMessage(telegramToken, tgID, "✅ Стикер улетел в Catlover!")
+
+							tgID := update.Message.From.ID
+
+							// Reuse the logic from the webhook (handling /start and stickers)
+							if strings.HasPrefix(update.Message.Text, "/start") {
+								parts := strings.Split(update.Message.Text, " ")
+								if len(parts) > 1 {
+									userRepo.LinkTelegramID(context.Background(), parts[1], tgID)
+									sendTelegramMessage(telegramToken, tgID, "✅ Привязано! Шли стикер.")
+								}
+							} else if update.Message.Sticker != nil {
+								user, _ := userRepo.GetByTelegramID(context.Background(), tgID)
+								if user != nil {
+									tgImporter.ImportSticker(context.Background(), user.ID, update.Message.Sticker.FileID)
+									sendTelegramMessage(telegramToken, tgID, "✅ Стикер улетел в Catlover!")
+								}
 							}
 						}
 					}
+					time.Sleep(500 * time.Millisecond)
 				}
-				time.Sleep(500 * time.Millisecond)
-			}
-		}()
+			}()
+		} else {
+			log.Println("ℹ️ Telegram polling disabled (serverless mode). Use webhook: /api/telegram/webhook")
+		}
 
 		authorized.DELETE("/contacts/:id/block", func(c *gin.Context) {
 			userID := c.GetString("userId")
