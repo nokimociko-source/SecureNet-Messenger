@@ -781,71 +781,14 @@ func SetupRoutes(r *gin.Engine, db *sql.DB, hub *websocket.Hub, notifSvc *servic
 		RegisterGroupRoutes(authorized, chatSvc)
 		RegisterDeviceRoutes(authorized, deviceSvc)
 		RegisterMediaRoutes(authorized, mediaSvc, chatSvc)
-		// ====== Admin + Audit Routes (admin role required) ======
+		// ====== Admin-only Mutating Routes (admin role required) ======
+		// Note: read-only audit/report endpoints are registered on the
+		// `authorized` group above with inline role checks that also allow
+		// the `moderator` role. Re-registering them here previously caused
+		// gin to panic with "handlers are already registered for path ...".
 		admin := authorized.Group("/")
 		admin.Use(AdminOnlyMiddleware())
 		{
-			admin.GET("/audit/logs", func(c *gin.Context) {
-				filter := models.AuditFilter{Limit: 50}
-				if v := c.Query("limit"); v != "" {
-					if n, err := parseInt(v); err == nil && n > 0 && n <= 500 {
-						filter.Limit = n
-					}
-				}
-				entries, err := auditService.GetAuditLog(filter)
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-					return
-				}
-				c.JSON(http.StatusOK, entries)
-			})
-
-			admin.GET("/audit/stats", func(c *gin.Context) {
-				stats, err := auditService.GetStats(c.Request.Context())
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-					return
-				}
-				c.JSON(http.StatusOK, stats)
-			})
-
-			admin.GET("/audit/activity/weekly", func(c *gin.Context) {
-				activity, err := auditService.GetWeeklyActivity(c.Request.Context())
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-					return
-				}
-				c.JSON(http.StatusOK, activity)
-			})
-
-			admin.GET("/admin/reports", func(c *gin.Context) {
-				rows, err := db.Query(`
-					SELECT r.id, r.reason, r.status, r.created_at,
-					       u1.username as reporter_name, u2.username as target_name,
-					       r.target_id
-					FROM reports r
-					JOIN users u1 ON r.reporter_id = u1.id
-					JOIN users u2 ON r.target_id = u2.id
-					ORDER BY r.created_at DESC LIMIT 100`)
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-					return
-				}
-				defer rows.Close()
-				var results []gin.H
-				for rows.Next() {
-					var id, reason, status, reporterName, targetName, targetID string
-					var createdAt time.Time
-					rows.Scan(&id, &reason, &status, &createdAt, &reporterName, &targetName, &targetID)
-					results = append(results, gin.H{
-						"id": id, "reason": reason, "status": status,
-						"createdAt": createdAt, "reporterName": reporterName,
-						"targetName": targetName, "targetId": targetID,
-					})
-				}
-				c.JSON(http.StatusOK, results)
-			})
-
 			admin.PATCH("/admin/reports/:id", func(c *gin.Context) {
 				var req struct {
 					Status     string `json:"status"`
