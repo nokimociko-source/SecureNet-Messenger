@@ -57,7 +57,6 @@ export default function SettingsView({
     return saved ? JSON.parse(saved) : {
       autoDownloadMobile: false,
       autoDownloadWifi: true,
-      useProxy: false
     };
   });
 
@@ -733,7 +732,6 @@ export default function SettingsView({
            
            <SectionTitle>Сервис</SectionTitle>
            <div className="bg-white/2 rounded-[28px] border border-white/5 overflow-hidden shadow-xl">
-              <SettingItem icon={Server} title="Использовать прокси" showChevron={false} rightElement={<ToggleSwitch active={dataSettings.useProxy} onClick={() => updateDataSetting('useProxy')} />} />
               <SettingItem icon={Database} title="Использование памяти" onClick={() => setActiveTab('usage')} />
            </div>
         </div>

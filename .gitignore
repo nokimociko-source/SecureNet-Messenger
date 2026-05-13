@@ -43,3 +43,7 @@ id_ed25519*
 
 # Uploads
 backend/uploads/
+# Build artifacts
+server
+server.exe
+

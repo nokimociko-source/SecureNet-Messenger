@@ -3,8 +3,7 @@
  * Handles file/image/voice message attachments with E2E encryption.
  */
 
-import { useState, useRef } from 'react';
-// import * as crypto from '../crypto/webcrypto'; // Removed for bundle optimization
+import { useEffect, useState, useRef } from 'react';
 
 interface MediaUploadProps {
   chatId: string;
@@ -90,9 +89,8 @@ export function MediaUpload({ chatId, onUploadComplete, apiRequest }: MediaUploa
       }
 
       const media = await response.json();
-      const crypto = await import('../crypto/webcrypto');
       const keyJwk = await crypto.exportPublicKey(aesKey);
-      
+
       setProgress(100);
 
       onUploadComplete({
@@ -102,7 +100,7 @@ export function MediaUpload({ chatId, onUploadComplete, apiRequest }: MediaUploa
         mimeType: file.type,
         url: `/api/media/${media.id}`,
         encryptionKey: keyJwk,
-        iv: (await import('../crypto/webcrypto')).arrayToBase64(iv),
+        iv: crypto.arrayToBase64(iv),
       });
 
       // Reset after brief delay
